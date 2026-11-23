@@ -1,0 +1,14 @@
+__pycache__/
+node_modules/
+*.tgz
+deprecated/
+data/_check_*.js
+data/*.png
+data/probe*.json
+data/probe*.log
+data/enum_*.json
+data/p[0-9].json
+data/bd_y1*.json
+data/8684_y1.html
+data/*.log
+data/*_log.txt
