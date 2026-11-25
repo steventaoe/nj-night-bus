@@ -73,7 +73,8 @@ const ctx = vm.createContext({
 vm.runInContext(src + '\n;globalThis.__test={SIM,SCHED,DATA,posAt,renderSim,doJump,fmtT,fmtSpeed,fmtWait,nextArrivals,chipState,pool,playBtn,scrub,loop,ORDER,' +
   'setSpeed,gaugePick,GEARS,gneedle,gfill,speedval,setSpeedPanel,busState,renderBoard,bbody,openFlash,updateFlash,closeFlash,' +
   'get livePopup(){return livePopup}, set livePopup(v){livePopup=v}, get flash(){return flash}, get gearIdx(){return gearIdx}, depPlan, FSP,' +
-  'placeFlashBus, flashGeom, openHelp, closeHelp, helpSearch, stopScale, paintStops, STOP_R, STOP_W};',
+  'placeFlashBus, flashGeom, openHelp, closeHelp, helpSearch, stopScale, paintStops, STOP_R, STOP_W,' +
+  'get REAL(){return REAL}, setReal, planFor, buildReal, posReal, REAL_CFG, dirLights, peakW, hashStr, mulberry32};',
   ctx, { timeout: 30000 });
 const T = ctx.__test || (ctx.globalThis && ctx.globalThis.__test);
 let pass = 0, fail = 0;
@@ -335,6 +336,47 @@ ok(T.stopScale(16) > T.stopScale(11), 'dots grow when zoomed in');
 ok(T.stopScale(22) <= 4, 'stopScale capped at 4');
 ok(T.stopScale(8) >= 0.8, 'stopScale floor 0.8');
 ok(typeof T.paintStops === 'function', 'paintStops defined (amber one-way fill)');
+
+// 18. realistic mode: seeded per-departure perturbations (delay/lights/congestion/dwell/accel)
+const keyR = 'Y1|0', vR = T.SCHED.dirs[keyR];
+ok(T.REAL === false, 'REAL defaults to false (theoretical)');
+ok(T.planFor(vR, keyR, 0) === null, 'theoretical planFor === depPlan (null for no-skip dir)');
+T.setReal(true);
+ok(T.REAL === true, 'setReal(true) flips REAL');
+const pR = T.planFor(vR, keyR, 0);
+ok(pR && pR.real === true, 'realistic plan carries real=true');
+ok(pR.depDelay >= 0 && pR.depDelay <= T.REAL_CFG.depMax, 'depDelay within [0,depMax] (never early)');
+ok(pR.st.length === vR.stopT.length, 'realistic st length matches stop count');
+let rMono = true; for (let i = 1; i < pR.st.length; i++) if (pR.st[i] < pR.st[i - 1] - 1e-9) rMono = false;
+ok(rMono, 'realistic stop times monotonic');
+ok(pR.run > 0 && isFinite(pR.run), 'realistic run finite & positive');
+ok(Array.isArray(pR.rt) && pR.rt.length >= 2 && pR.rt[0][0] === 0, 'time-warp RT starts at real=0');
+const pR2 = T.buildReal(vR, keyR, 0);
+ok(JSON.stringify(pR.rt) === JSON.stringify(pR2.rt) && pR.depDelay === pR2.depDelay, 'buildReal deterministic per departure (scrub-stable)');
+const pRk1 = T.buildReal(vR, keyR, 1);
+ok(pRk1.depDelay !== pR.depDelay || JSON.stringify(pRk1.rt) !== JSON.stringify(pR.rt), 'distinct departures get distinct perturbations');
+const o0 = T.posReal(vR, pR, 0), oEnd = T.posReal(vR, pR, pR.run + 5);
+const thO = T.posAt(vR, 0), thE = T.posAt(vR, vR.run + 5);
+ok(Math.abs(o0[0] - thO[0]) < 1e-6 && Math.abs(o0[1] - thO[1]) < 1e-6, 'posReal(0) sits at origin');
+ok(Math.abs(oEnd[0] - thE[0]) < 1e-6 && Math.abs(oEnd[1] - thE[1]) < 1e-6, 'posReal(end) sits at terminal');
+const oMid = T.posReal(vR, pR, pR.run * 0.5);
+ok(isFinite(oMid[0]) && isFinite(oMid[1]) && Math.abs(oMid[0]) > 1 && Math.abs(oMid[1]) > 1, 'posReal mid-route finite coord');
+ok(T.dirLights(vR).length > 0, 'dirLights infers signals along urban route');
+ok(T.peakW(0) === 0 && T.peakW(420) === 1 && T.peakW(1110) === 1, 'peakW zero at midnight, peaks 07:00 & 18:30');
+ok(T.peakW(420) >= T.peakW(360), 'peakW rises into morning peak');
+ok(T.hashStr('a#0') === T.hashStr('a#0') && T.hashStr('a#0') !== T.hashStr('a#1'), 'hashStr stable & key-sensitive');
+const gA = T.mulberry32(12345), gB = T.mulberry32(12345);
+ok(gA() === gB(), 'mulberry32 reproducible from same seed');
+const vS = T.SCHED.dirs['Y27|1'], iS = vS.skip[0].i;
+let kS = -1; for (let k = 0; k < vS.deps.length; k++) { const pass = vS.deps[k] + vS.stopT[iS]; if (pass >= vS.skip[0].from && pass < vS.skip[0].to) { kS = k; break; } }
+const pS = T.buildReal(vS, 'Y27|1', kS);
+ok(kS >= 0 && pS.sk[iS] === true && pS.dwr[iS] === 0, 'realistic skipped stop gets zero dwell');
+T.SIM.t = vR.deps[0] + 5; tsNow += 1000; T.renderSim(); T.renderBoard();
+ok(T.bbody.innerHTML.length > 0, 'board & sim render without error in realistic mode');
+T.openFlash(keyR + '|0'); T.updateFlash(); T.closeFlash();
+ok(true, 'flash line-map renders in realistic mode');
+T.setReal(false);
+ok(T.REAL === false && T.planFor(vR, keyR, 0) === null, 'setReal(false) restores theoretical planFor');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -165,6 +165,8 @@ html = '''<!DOCTYPE html>
  #play{min-width:74px;color:#ffd97a}
  #speedbtn{color:#ffd97a;font-family:Consolas,'Courier New',monospace}
  #speedbtn.on{background:#3d3212;border-color:#8a6d3b}
+ #modebtn{color:#9fd0ff;font-family:Consolas,'Courier New',monospace}
+ #modebtn.real{background:#12303d;border-color:#3b7d8a;color:#7fe3ff}
  #sidetoggle{display:none}
  /* ---- floating speed dial panel ---- */
  #speedpanel{position:absolute;left:12px;bottom:62px;z-index:1200;background:rgba(13,18,38,.97);border:1px solid #2c3a6e;border-radius:12px;padding:12px 16px 10px;box-shadow:0 12px 40px rgba(0,0,0,.55),0 0 24px rgba(91,141,239,.12)}
@@ -314,6 +316,7 @@ html = '''<!DOCTYPE html>
  <button id="sidetoggle">☰ 线路</button>
  <button id="play">▶ 播放</button>
  <button id="speedbtn" title="呼出速度调节盘">⏱ 30分/秒 ▴</button>
+ <button id="modebtn" title="当前：理论模式（图定时刻表）">🌙 理论模式</button>
  <span id="clock">--:--</span>
  <input id="scrub" type="range" title="拖动进度条">
  <input id="tinput" type="text" placeholder="23:30" title="输入时刻，00:00–07:59 视为次日">
@@ -430,6 +433,12 @@ html = '''<!DOCTYPE html>
     <p>各站到站时刻按<b>分段限速旅速模型估算</b>：常规道路限速 40km/h，折减红绿灯/转弯后旅速约 <b>__VR__ km/h</b>（百度百余段行程时间校准）；江北大道地面辅路约 <b>__VA__ km/h</b>（守时1号线公布全程 70 分钟校准）；高速/过江通道等无站区段限速 70km/h，按 <b>__VF__ km/h</b> 计；每站停 <b>__DWELL__</b> 分钟、急弯每次加 <b>__TP__</b> 分钟。</p>
    </div>
    <div class="hsec">
+    <h3>理论模式 / 现实模式</h3>
+    <p>底部 <b>🌙 理论模式</b> 按钮可一键切换两种模拟。<b>理论模式</b>严格按图定时刻表与旅速模型运行，结果可复现，用于对照；<b>现实模式</b>为每班车叠加<b>确定性随机扰动</b>（按班次固定随机种子，拖动进度条往返结果完全一致）。</p>
+    <p>现实模式包含五类效应：① 在推断的信号灯路口随机遇到<b>绿灯/闪黄通过</b>或<b>红灯等待</b>；② <b>停站时长随机</b>——夜间客流稀少时多数站仅"稍减速完成开关门"即走，景区/饭店/换乘大站停留更久；③ <b>发车随机延误</b> 0–3 分钟（绝不早发）；④ 跨凌晨/晚高峰（约 06:00 后、17–19 时）的班次随机遭遇<b>堵车降速</b>；⑤ 每次停站/等灯后的<b>起步加减速</b>使速度不均匀。</p>
+    <p>信号灯位置由线路几何<b>推断</b>（城市段每约 0.55 km 或明显转弯处设一处，高速/过江等无站区段不设灯），并非逐一实地调研；如需精确可接入真实信号数据。现实模式下大屏/弹窗/闪灯图显示的时刻均为该车次的实际（含延误）时刻。</p>
+   </div>
+   <div class="hsec">
     <h3>守时公交与线路备注</h3>
     <p>守时1号线：泰冯路地铁站西 23:10 发车接驳 S8 末班（21:40 方州广场东回送）；守时2号线：月苑南路 23:20–00:20 / 迈皋桥东 23:40–00:40 接驳 1 号线末班。</p>
     <p>Y6/Y9/Y14/Y15/Y18/Y19/Y20 已撤销；Y4/Y17/Y21 存在区间车（对向起讫站不同）；Y30/Y41 末班早于午夜。__SUBNOTE__</p>
@@ -538,6 +547,7 @@ function depPlan(v, key, k) {
   return p;
 }
 function posAt(v, el, plan) {
+  if (plan && plan.real) return posReal(v, plan, el);
   if (plan) {
     const dw = SCHED.model.dwell;
     let add = 0;
@@ -551,6 +561,168 @@ function posAt(v, el, plan) {
   const span = b[0] - a[0], u = span > 1e-9 ? Math.max(0, Math.min(1, (el - a[0]) / span)) : 0;
   const da = ((b[3] - a[3] + 540) % 360) - 180;
   return [a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u, a[3] + da * u, a[4] + (b[4] - a[4]) * u];
+}
+// ---------- realistic mode: deterministic per-departure time warp ----------
+// Theoretical mode plays the published timetable exactly. Realistic mode layers
+// five stochastic effects on top, seeded per departure so scrubbing back and
+// forth always shows the same bus in the same place:
+//   ① signals    inferred junctions: green / flashing-yellow pass, or red wait
+//   ② dwell      quick "door-cycle only" stops vs normal vs long (scenic/interchange)
+//   ③ depDelay   0..few minutes late departure (never early)
+//   ④ congestion peak-hour speed loss for departures crossing ~06:00 / 17-19h
+//   ⑤ accel      extra time + eased start after each stop / red light
+// The warp RT = [[realMin, theoreticalTau], ...] maps elapsed real minutes (from
+// the scheduled departure) to the theoretical timeline that posAt interpolates.
+const REAL_CFG = {
+  depMax: 3.0, pQuick: 0.42, pBusy: 0.12,
+  quickMin: 0.15, quickMax: 0.40, busyMul: [1.6, 3.8], normMul: [0.8, 1.5],
+  lightSpacing: 0.55, turnLightDeg: 18, pRed: 0.34, redMin: 0.3, redMax: 1.6,
+  pYellow: 0.12, yellowWait: 0.12, accel: 0.06, accelLong: 0.05,
+  congMax: 0.75, fastGapKm: 2.5
+};
+let REAL = false;
+const realCache = new Map(), lightCache = new Map(), fastCache = new Map();
+function hashStr(s) { let h = 2166136261 >>> 0; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function peakW(m) {
+  const tod = ((m % 1440) + 1440) % 1440;
+  const tri = (x, a, b, c) => x <= a || x >= c ? 0 : (x < b ? (x - a) / (b - a) : (c - x) / (c - b));
+  return Math.max(tri(tod, 300, 420, 540), tri(tod, 1000, 1110, 1220));
+}
+function fastSpans(v) {
+  let s = fastCache.get(v); if (s) return s;
+  s = []; const k = v.stopKm;
+  for (let i = 0; i < k.length - 1; i++) if (k[i + 1] - k[i] > REAL_CFG.fastGapKm) s.push([k[i], k[i + 1]]);
+  fastCache.set(v, s); return s;
+}
+function inFast(v, kmx) { const s = fastSpans(v); for (let i = 0; i < s.length; i++) if (kmx >= s[i][0] - 1e-6 && kmx <= s[i][1] + 1e-6) return true; return false; }
+// Signal positions (theoretical minutes) inferred from geometry: a junction
+// proxy every ~lightSpacing km of urban running, plus notable turns. Limited-
+// access spans (long non-stop gaps) carry no signals. Cached per direction.
+function dirLights(v) {
+  let L = lightCache.get(v); if (L) return L;
+  L = []; const f = v.frames; let since = 0;
+  for (let i = 1; i < f.length; i++) {
+    const dkm = f[i][4] - f[i - 1][4];
+    if (dkm <= 1e-9) continue;
+    if (inFast(v, f[i][4])) { since = 0; continue; }
+    const dh = Math.abs(((f[i][3] - f[i - 1][3] + 540) % 360) - 180);
+    since += dkm;
+    if (since >= REAL_CFG.lightSpacing || dh > REAL_CFG.turnLightDeg) { L.push(f[i][0]); since = 0; }
+  }
+  lightCache.set(v, L); return L;
+}
+function accelFor(d) { return REAL_CFG.accel + (d > 1.0 ? REAL_CFG.accelLong : 0); }
+function travelReal(a, b, depBase, sev) { return (b - a) * (1 + sev * REAL_CFG.congMax * peakW(depBase + (a + b) / 2)); }
+function buildReal(v, key, k) {
+  const rng = mulberry32(hashStr(key + '#' + k));
+  const n = v.stopT.length, dw = SCHED.model.dwell, f = v.frames, depBase = v.deps[k];
+  const r = DATA.routes.find(x => x.id === key.split('|')[0]);
+  const di = +key.split('|')[1];
+  const names = r ? r.dirs[di].stops : [];
+  const sk = new Array(n).fill(false);
+  if (v.skip) for (const w of v.skip) for (let i = 0; i < n; i++) if (w.i === i) {
+    const pass = depBase + v.stopT[i]; if (pass >= w.from && pass < w.to) sk[i] = true;
+  }
+  const dwr = new Array(n);
+  for (let i = 0; i < n; i++) {
+    if (sk[i]) { dwr[i] = 0; continue; }
+    const nm = names[i];
+    const busy = nm && DATA.stops[nm] ? Object.keys(DATA.stops[nm].routes).length : 1;
+    const inter = busy >= 2, edge = (i === 0 || i === n - 1);
+    const pBusy = REAL_CFG.pBusy + (inter ? 0.12 : 0) + (edge ? 0.10 : 0);
+    const pQuick = Math.max(0.05, REAL_CFG.pQuick - (inter ? 0.18 : 0) - (edge ? 0.10 : 0));
+    const u = rng();
+    if (u < pQuick) dwr[i] = REAL_CFG.quickMin + rng() * (REAL_CFG.quickMax - REAL_CFG.quickMin);
+    else if (u < pQuick + pBusy) dwr[i] = dw * (REAL_CFG.busyMul[0] + rng() * (REAL_CFG.busyMul[1] - REAL_CFG.busyMul[0]));
+    else dwr[i] = dw * (REAL_CFG.normMul[0] + rng() * (REAL_CFG.normMul[1] - REAL_CFG.normMul[0]));
+  }
+  const depDelay = +(rng() * rng() * REAL_CFG.depMax).toFixed(2);
+  const sev = rng();
+  const reds = [];
+  for (const tau of dirLights(v)) {
+    const u = rng();
+    if (u < REAL_CFG.pRed) reds.push({tau, wait: REAL_CFG.redMin + rng() * (REAL_CFG.redMax - REAL_CFG.redMin)});
+    else if (u < REAL_CFG.pRed + REAL_CFG.pYellow) reds.push({tau, wait: REAL_CFG.yellowWait});
+  }
+  reds.sort((a, b) => a.tau - b.tau);
+  const dstop = new Array(f.length - 1).fill(-1);
+  for (let i = 0; i < f.length - 1; i++) {
+    if (Math.abs(f[i][1] - f[i + 1][1]) < 1e-9 && Math.abs(f[i][2] - f[i + 1][2]) < 1e-9) {
+      let s = -1, best = 1e9;
+      for (let j = 0; j < n; j++) { const d = Math.abs(v.stopKm[j] - f[i][4]); if (d < best) { best = d; s = j; } }
+      dstop[i] = best < 0.02 ? s : -2;
+    }
+  }
+  const RT = [[0, f[0][0]]];
+  const push = (real, tau) => {
+    const last = RT[RT.length - 1];
+    if (real <= last[0] + 1e-9) { if (tau > last[1]) last[1] = tau; return; }
+    RT.push([real, tau]);
+  };
+  let real = depDelay, ri = 0, pendAccel = 0;
+  push(real, f[0][0]);
+  for (let i = 0; i < f.length - 1; i++) {
+    const ta = f[i][0], tb = f[i + 1][0];
+    while (ri < reds.length && reds[ri].tau <= ta + 1e-9) {
+      const w = reds[ri].wait; real += w; push(real, ta); pendAccel += accelFor(w); ri++;
+    }
+    if (dstop[i] >= 0) {
+      const s = dstop[i], dReal = dwr[s] !== undefined ? dwr[s] : dw;
+      real += dReal; push(real, tb); pendAccel += accelFor(dReal);
+    } else if (dstop[i] === -2) {
+      real += travelReal(ta, tb, depBase, sev); push(real, tb);
+    } else {
+      let cur = ta;
+      while (ri < reds.length && reds[ri].tau < tb - 1e-9) {
+        const tr = reds[ri].tau;
+        real += travelReal(cur, tr, depBase, sev); push(real, tr);
+        const w = reds[ri].wait; real += w; push(real, tr); pendAccel += accelFor(w);
+        cur = tr; ri++;
+      }
+      if (pendAccel > 0 && tb > cur + 1e-9) {
+        const tm = cur + (tb - cur) * 0.5;
+        real += travelReal(cur, tm, depBase, sev) * 1.5 + pendAccel; push(real, tm);
+        real += travelReal(tm, tb, depBase, sev) * 0.85; push(real, tb);
+        pendAccel = 0;
+      } else {
+        real += travelReal(cur, tb, depBase, sev); push(real, tb);
+      }
+    }
+  }
+  while (ri < reds.length) { real += reds[ri].wait; push(real, f[f.length - 1][0]); ri++; }
+  const tauToReal = tau => {
+    let lo = 0, hi = RT.length - 1;
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (RT[mid][1] < tau - 1e-9) lo = mid + 1; else hi = mid; }
+    const j = Math.max(1, lo), a = RT[j - 1], b = RT[j];
+    const span = b[1] - a[1];
+    const u = span > 1e-9 ? Math.max(0, Math.min(1, (tau - a[1]) / span)) : 1;
+    return a[0] + (b[0] - a[0]) * u;
+  };
+  const st = new Array(n);
+  for (let i = 0; i < n; i++) st[i] = +tauToReal(v.stopT[i]).toFixed(3);
+  const run = +RT[RT.length - 1][0].toFixed(3);
+  let nRed = 0; for (const x of reds) if (x.wait > REAL_CFG.yellowWait + 1e-9) nRed++;
+  return {st, sk, run, dwr, real: true, rt: RT, depDelay, sev, diag: {nRed, nLight: dirLights(v).length}};
+}
+function posReal(v, plan, el) {
+  const RT = plan.rt;
+  if (el <= RT[0][0]) return posAt(v, RT[0][1]);
+  const last = RT[RT.length - 1];
+  if (el >= last[0]) return posAt(v, last[1]);
+  let lo = 0, hi = RT.length - 1;
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (RT[mid][0] < el) lo = mid + 1; else hi = mid; }
+  const j = Math.max(1, lo), a = RT[j - 1], b = RT[j];
+  const span = b[0] - a[0];
+  const u = span > 1e-9 ? (el - a[0]) / span : 0;
+  return posAt(v, a[1] + (b[1] - a[1]) * u);
+}
+function planFor(v, key, k) {
+  if (!REAL) return depPlan(v, key, k);
+  const ck = key + '|' + k;
+  let p = realCache.get(ck);
+  if (!p) { p = buildReal(v, key, k); realCache.set(ck, p); }
+  return p;
 }
 function busIcon(color, rid) {
   const svg = '<svg width="20" height="28" viewBox="-10 -14 20 28">' +
@@ -584,7 +756,7 @@ function nextArrivals(nm, st) {
       let arrK = -1, arrAt = 0, passInfo = null;
       for (let k = 0; k < v.deps.length; k++) {
         const dep = v.deps[k];
-        const plan = depPlan(v, key, k);
+        const plan = planFor(v, key, k);
         const at = plan ? plan.st[idx] : v.stopT[idx];
         if (dep + at < SIM.t) continue;
         if (plan && plan.sk[idx]) { if (!passInfo) passInfo = {dep, at}; continue; }
@@ -597,7 +769,7 @@ function nextArrivals(nm, st) {
           ' → <span style="color:#7f8db8">已收车</span></div>';
         continue;
       }
-      const dep = v.deps[arrK], plan = depPlan(v, key, arrK);
+      const dep = v.deps[arrK], plan = planFor(v, key, arrK);
       const wait = dep + arrAt - SIM.t;
       let distTxt;
       if (idx === 0) distTxt = '始发站';
@@ -683,6 +855,18 @@ const setSpeedPanel = open => {
   speedbtn.textContent = '⏱ ' + fmtSpeed(SIM.speed) + (open ? ' ▾' : ' ▴');
 };
 speedbtn.onclick = () => setSpeedPanel(speedpanel.hidden);
+const modebtn = document.getElementById('modebtn');
+function setReal(on) {
+  REAL = !!on;
+  modebtn.textContent = REAL ? '🌆 现实模式' : '🌙 理论模式';
+  modebtn.classList.toggle('real', REAL);
+  modebtn.title = REAL ? '当前：现实模式（随机延误 / 红绿灯 / 堵车 / 停站波动）' : '当前：理论模式（图定时刻表）';
+  dirty = true;
+  renderSim(); renderBoard();
+  if (flash) updateFlash();
+  if (livePopup) livePopup.p.setContent(livePopup.i.html + nextArrivals(livePopup.i.nm, livePopup.i.st));
+}
+modebtn.onclick = () => setReal(!REAL);
 document.addEventListener('pointerdown', e => {
   if (!speedpanel.hidden && !speedpanel.contains(e.target) && e.target !== speedbtn) setSpeedPanel(false);
 });
@@ -722,18 +906,20 @@ const bstore = {
   set(v) { try { localStorage.setItem(BKEY, JSON.stringify(v)); } catch (e) {} }
 };
 function busState(v, stops, el, dep, plan) {
-  const st = plan ? plan.st : v.stopT, n = st.length, dw = SCHED.model.dwell;
+  const st = plan ? plan.st : v.stopT, n = st.length, dw0 = SCHED.model.dwell;
+  const dwr = plan && plan.dwr ? plan.dwr : null;
   const sk = plan ? plan.sk : null, run = plan ? plan.run : v.run;
   let i = 0;
   while (i < n - 1 && st[i + 1] <= el) i++;
   if (i >= n - 1 || el >= run) return {status: '终到', seg: stops[n - 1], next: '—', eta: '—', cls: 'bstop'};
   let j = i + 1;
   while (j < n - 1 && sk && sk[j]) j++;
+  const dwi = dwr ? (dwr[i] !== undefined ? dwr[i] : dw0) : dw0;
   if (sk && sk[i]) {
-    if (el < st[i] + dw) return {status: '飞站', seg: stops[i] + '（通过不停车）', next: stops[j], eta: fmtT(dep + st[j]), cls: 'bskip'};
+    if (el < st[i] + dw0) return {status: '飞站', seg: stops[i] + '（通过不停车）', next: stops[j], eta: fmtT(dep + st[j]), cls: 'bskip'};
     return {status: '行驶', seg: stops[i] + ' → ' + stops[j], next: stops[j], eta: fmtT(dep + st[j]), cls: 'brun'};
   }
-  if (el < st[i] + dw) return {status: '停靠', seg: stops[i], next: stops[j], eta: fmtT(dep + st[j]), cls: 'bstop'};
+  if (el < st[i] + dwi) return {status: '停靠', seg: stops[i], next: stops[j], eta: fmtT(dep + st[j]), cls: 'bstop'};
   return {status: '行驶', seg: stops[i] + ' → ' + stops[j], next: stops[j], eta: fmtT(dep + st[j]), cls: 'brun'};
 }
 function renderBoard() {
@@ -751,14 +937,14 @@ function renderBoard() {
         const dep = v.deps[k];
         if (dep > t) { nwait++; continue; }
         ndep++;
-        const plan = depPlan(v, r.id + '|' + di, k);
+        const plan = planFor(v, r.id + '|' + di, k);
         if (dep + (plan ? plan.run : v.run) < t) continue;
         nrun++;
         if (only && chipState[r.id] === false) continue;
         const bs = busState(v, d.stops, t - dep, dep, plan);
         const dir = r.id === 'Y33' ? (di === 0 ? '内圈' : '外圈') : d.from + '→' + d.to;
         if (q && !(r.label + dir + bs.seg + bs.next).includes(q)) continue;
-        rows.push({r, di, k, dep, bs, dir});
+        rows.push({r, di, k, dep, bs, dir, depShow: dep + (plan && plan.real ? plan.depDelay : 0)});
       }
     });
   }
@@ -771,7 +957,7 @@ function renderBoard() {
     h += '<tr data-key="' + x.r.id + '|' + x.di + '|' + x.k + '">' +
       '<td><span class="bled" style="color:' + x.r.color + '">' + x.r.label + '</span></td>' +
       '<td class="bdir">' + x.dir + '</td>' +
-      '<td>' + fmtT(x.dep) + '</td>' +
+      '<td>' + fmtT(x.depShow) + '</td>' +
       '<td class="bseg">' + x.bs.seg + '</td>' +
       '<td>' + x.bs.next + '</td>' +
       '<td>' + x.bs.eta + '</td>' +
@@ -791,7 +977,7 @@ function locateBus(key) {
   const parts = key.split('|');
   const v = SCHED.dirs[parts[0] + '|' + parts[1]];
   if (!v) return;
-  const q = posAt(v, SIM.t - v.deps[+parts[2]], depPlan(v, parts[0] + '|' + parts[1], +parts[2]));
+  const q = posAt(v, SIM.t - v.deps[+parts[2]], planFor(v, parts[0] + '|' + parts[1], +parts[2]));
   map.setView(pt(q[0], q[1]), 14);
 }
 // drag + resize + minimize, persisted
@@ -863,7 +1049,7 @@ function openFlash(key) {
   const v = SCHED.dirs[rid + '|' + di];
   if (!r || !v) return;
   const d = r.dirs[di];
-  const plan = depPlan(v, rid + '|' + di, k);
+  const plan = planFor(v, rid + '|' + di, k);
   flash = {key, rid, di, k, r, d, v, plan};
   const n = d.stops.length;
   const inner = document.getElementById('finner');
@@ -885,25 +1071,27 @@ function openFlash(key) {
   const fl = document.getElementById('fline');
   fl.textContent = r.label; fl.style.background = r.color;
   document.getElementById('fdir').textContent = rid === 'Y33' ? (di === 0 ? '内圈运行' : '外圈运行') : d.from + ' → ' + d.to;
-  document.getElementById('fdep').textContent = '本次发车 ' + fmtT(v.deps[k]);
+  document.getElementById('fdep').textContent = '本次发车 ' + fmtT(v.deps[k] + (plan && plan.real ? plan.depDelay : 0));
   updateFlash();
 }
 function flashGeom() {
   const v = flash.v, plan = flash.plan;
   const dep = v.deps[flash.k];
   const st = plan ? plan.st : v.stopT, sk = plan ? plan.sk : null;
-  const run = plan ? plan.run : v.run, dw = SCHED.model.dwell, n = st.length;
+  const run = plan ? plan.run : v.run, dw0 = SCHED.model.dwell, n = st.length;
+  const dwr = plan && plan.dwr ? plan.dwr : null;
   const el = Math.max(0, Math.min(run, SIM.t - dep));
   let i = 0;
   while (i < n - 1 && st[i + 1] <= el) i++;
   const skipped = !!(sk && sk[i]);
-  const dwelling = i < n - 1 && !skipped && el < st[i] + dw;
-  const passing = i < n - 1 && skipped && el < st[i] + dw;
+  const dwi = dwr ? (dwr[i] !== undefined ? dwr[i] : dw0) : dw0;
+  const dwelling = i < n - 1 && !skipped && el < st[i] + dwi;
+  const passing = i < n - 1 && skipped && el < st[i] + dw0;
   // frac 0 at the terminal: i is already the last index, adding 1 would
   // push the bus a full stop-spacing past the end of the track.
   const frac = i < n - 1 ? Math.max(0, Math.min(1, (el - st[i]) / (st[i + 1] - st[i]))) : 0;
   const pos = 30 + (i + (dwelling ? 0 : frac)) * FSP;
-  return {dep, st, sk, run, dw, n, el, i, skipped, dwelling, passing, pos, arrived: el >= run};
+  return {dep, st, sk, run, dw: dw0, n, el, i, skipped, dwelling, passing, pos, arrived: el >= run};
 }
 // Bus marker, lit track and follow-scroll all derive from the same instantaneous
 // position and move together every frame, so they never drift apart. The old
@@ -1019,7 +1207,7 @@ function renderSim() {
       for (let k = 0; k < v.deps.length; k++) {
         const dep = v.deps[k];
         if (dep > t) break;
-        const plan = depPlan(v, r.id + '|' + di, k);
+        const plan = planFor(v, r.id + '|' + di, k);
         if (dep + (plan ? plan.run : v.run) < t) continue;
         const key = r.id + '|' + di + '|' + k;
         active.add(key);
@@ -1027,7 +1215,7 @@ function renderSim() {
         let e = pool.get(key);
         if (!e) {
           const mk = L.marker(pt(q[0], q[1]), {icon: busIcon(r.color, r.id), zIndexOffset: 600});
-          mk.bindTooltip(r.label + ' · ' + fmtT(dep) + '发车（点击查看闪灯图）', {direction: 'top', offset: [0, -12]});
+          mk.bindTooltip(r.label + ' · ' + fmtT(dep + (plan && plan.real ? plan.depDelay : 0)) + '发车（点击查看闪灯图）', {direction: 'top', offset: [0, -12]});
           mk.on('click', () => openFlash(key));
           mk.addTo(map);
           e = {mk}; pool.set(key, e);
