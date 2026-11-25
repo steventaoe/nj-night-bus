@@ -284,7 +284,9 @@ def main():
             all_end += [deps[-1] + run]
 
     sched['start'] = min(all_deps)
-    sched['end'] = round(max(all_end), 1)
+    # floor the window at 07:40⁺¹ so playback has headroom after the last
+    # arrival (~07:22) instead of stalling the moment the network empties
+    sched['end'] = max(round(max(all_end), 1), 1900)
     if skip_stops:
         sched['skipStops'] = list(skip_stops.values())
     peak = 0
