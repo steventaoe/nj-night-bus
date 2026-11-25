@@ -284,9 +284,12 @@ def main():
             all_end += [deps[-1] + run]
 
     sched['start'] = min(all_deps)
-    # floor the window at 07:40⁺¹ so playback has headroom after the last
-    # arrival (~07:22) instead of stalling the moment the network empties
-    sched['end'] = max(round(max(all_end), 1), 1900)
+    # Floor the window so playback has headroom after the last arrival instead
+    # of stalling the moment the network empties. Theoretical last arrival is
+    # ~07:23; realistic mode adds departure delay + red-light waits + peak
+    # congestion + dwell variance, pushing the latest 收车 to ~08:07 (measured
+    # max of deps[k]+run over all 626 departures). Floor at 08:30⁺¹ covers both.
+    sched['end'] = max(round(max(all_end), 1), 1950)
     if skip_stops:
         sched['skipStops'] = list(skip_stops.values())
     peak = 0

@@ -64,7 +64,7 @@ function autoMock(name) {
 let tsNow = 1000, rafCb = null;
 const ctx = vm.createContext({
   document: documentMock,
-  window: { addEventListener() {}, innerWidth: 1400, innerHeight: 900 },
+  window: { _l: {}, addEventListener(t, f) { (this._l[t] = this._l[t] || []).push(f); }, innerWidth: 1400, innerHeight: 900 },
   L: autoMock('L'),
   performance: { now: () => tsNow },
   requestAnimationFrame: cb => { rafCb = cb; },
@@ -83,6 +83,8 @@ vm.runInContext(src + '\n;globalThis.__test={SIM,SCHED,DATA,posAt,renderSim,doJu
 const T = ctx.__test || (ctx.globalThis && ctx.globalThis.__test);
 let pass = 0, fail = 0;
 const ok = (cond, msg) => { if (cond) { pass++; } else { fail++; console.log('FAIL:', msg); } };
+// Capture the as-loaded defaults before any later section mutates SIM.speed / gearIdx.
+const __initSpeed = T.SIM.speed, __initGear = T.gearIdx;
 
 // 1. sidebar chips
 const nRoutes = T.DATA.routes.length;
@@ -157,7 +159,7 @@ ok(badPos === 0, 'posAt dwell plateaus + terminal position');
 // 5. jumps
 byId['tinput'].value = '00:30'; T.doJump(); ok(T.SIM.t === 1470, 'jump 00:30 -> 1470');
 byId['tinput'].value = '22:20'; T.doJump(); ok(T.SIM.t === 1340, 'jump 22:20 -> 1340');
-byId['tinput'].value = '07:50'; T.doJump(); ok(T.SIM.t === T.SCHED.end, 'jump clamps to end');
+byId['tinput'].value = '09:00'; T.doJump(); ok(T.SIM.t === T.SCHED.end, 'jump clamps to end');
 byId['tinput'].value = '15:00'; T.doJump(); ok(T.SIM.t === T.SCHED.start, 'jump clamps to start');
 
 // 6. play advance + auto-pause
@@ -180,7 +182,7 @@ ok(T.fmtWait(4.5) === '5分钟' && T.fmtWait(7.4) === '7分钟', 'fmtWait rounds
 // 8. speed dial: gears, panel summon, needle picking
 ok(T.GEARS.length === 10 && T.GEARS[0] === 1/6 && T.GEARS[1] === 1/3 && T.GEARS[2] === 0.5,
   'gears include 10/20/30 sec-per-sec');
-ok(T.SIM.speed === 30 && T.gearIdx === 7, 'default 30 min/s');
+ok(__initSpeed === 1 && __initGear === 3, 'default 1 min/s (speed ' + __initSpeed + ', gear ' + __initGear + ')');
 ok(T.fmtSpeed(1/6) === '10秒/秒' && T.fmtSpeed(0.5) === '30秒/秒' && T.fmtSpeed(30) === '30分/秒', 'fmtSpeed labels');
 byId['speedpanel'].hidden = true; // mirror the hidden attribute in HTML
 byId['speedbtn'].onclick();
@@ -194,7 +196,23 @@ ok(/rotate\(/.test(T.gneedle.attrs.transform || ''), 'needle transform set');
 T.gaugePick({ clientX: 66, clientY: 14 }); ok(T.SIM.speed === 15, 'gauge top -> 15, got ' + T.SIM.speed);
 T.gaugePick({ clientX: 120, clientY: 84 }); ok(T.SIM.speed === 120, 'gauge right -> 120');
 T.gaugePick({ clientX: 12, clientY: 84 }); ok(T.SIM.speed === 1/6, 'gauge left -> 10秒/秒');
-T.setSpeed(7);
+T.setSpeed(3);
+
+// 8b. ← → speed nudge is window-level: works whenever the dial is open
+const wkd = (ctx.window._l && ctx.window._l.keydown) || [];
+ok(wkd.length >= 1, 'window keydown handler registered');
+const fireKey = (k, tag) => wkd.forEach(fn => fn({ key: k, target: { tagName: tag || 'BODY' }, preventDefault() {} }));
+T.setSpeed(3); T.setSpeedPanel(true);
+fireKey('ArrowRight'); ok(T.gearIdx === 4 && T.SIM.speed === 5, 'ArrowRight nudges up while dial open -> gear ' + T.gearIdx);
+fireKey('ArrowUp');    ok(T.gearIdx === 5, 'ArrowUp nudges up');
+fireKey('ArrowLeft');  ok(T.gearIdx === 4, 'ArrowLeft nudges down');
+fireKey('ArrowDown');  ok(T.gearIdx === 3 && T.SIM.speed === 1, 'ArrowDown nudges back to 1 min/s');
+T.setSpeedPanel(false);
+fireKey('ArrowRight'); ok(T.gearIdx === 3, 'arrows inert while dial closed');
+T.setSpeedPanel(true);
+fireKey('ArrowRight', 'INPUT'); ok(T.gearIdx === 3, 'arrows inert while focus is in an input');
+T.setSpeedPanel(false);
+T.setSpeed(3);
 
 // 9. live stop popup refresh
 const popCalls = [];
@@ -465,6 +483,18 @@ const y16 = perRoute['Y16'], y39 = perRoute['Y39'];
 ok(y16 && y39 && (y16.s / y16.n) > (y39.s / y39.n) * 1.3, 'busy Y16 dwells markedly longer than empty Y39');
 const sMean = sSum / Math.max(1, sN), mMean = mSum / Math.max(1, mN);
 ok(sN > 0 && mN > 0 && mMean < sMean * 1.25, 'ordinary 2-3-route transfer stops are NOT inflated vs single-route stops, weight-normalised (' + mMean.toFixed(3) + ' vs ' + sMean.toFixed(3) + ')');
+
+// 21. simulation window covers realistic-mode finishes (no 收车 after SCHED.end)
+let maxFinReal = -1, argFin = null;
+for (const key of Object.keys(T.SCHED.dirs)) {
+  const v = T.SCHED.dirs[key];
+  for (let k = 0; k < v.deps.length; k++) {
+    const fin = v.deps[k] + T.buildReal(v, key, k).run;
+    if (fin > maxFinReal) { maxFinReal = fin; argFin = key + '|' + k; }
+  }
+}
+ok(maxFinReal <= T.SCHED.end, 'realistic max finish ' + maxFinReal.toFixed(1) + ' (' + argFin + ') <= SCHED.end ' + T.SCHED.end);
+ok(T.SCHED.end >= 1950, 'window end floor >= 08:30 (1950) for realistic headroom, got ' + T.SCHED.end);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -86,7 +86,7 @@ def gauge_svg():
     arc = f'M {x0:.1f} {y0:.1f} A {GR} {GR} 0 1 1 {x1:.1f} {y1:.1f}'
     f0 = GDEF / (len(GEARS) - 1)
     p = [f'<svg id="gsvg" viewBox="0 0 132 92" width="132" height="92" role="slider" tabindex="0" '
-         f'aria-label="模拟速度" aria-valuemin="0" aria-valuemax="120" aria-valuenow="30">',
+         f'aria-label="模拟速度" aria-valuemin="0" aria-valuemax="120" aria-valuenow="1">',
          '<defs><linearGradient id="ggrad" x1="0" y1="1" x2="1" y2="0">'
          '<stop offset="0" stop-color="#5b8def"/><stop offset=".5" stop-color="#fbbf24"/>'
          '<stop offset="1" stop-color="#f87171"/></linearGradient></defs>',
@@ -347,17 +347,17 @@ html = '''<!DOCTYPE html>
 <div id="simbar">
  <button id="sidetoggle">☰ 线路</button>
  <button id="play">▶ 播放</button>
- <button id="speedbtn" title="呼出速度调节盘">⏱ 30分/秒 ▴</button>
+ <button id="speedbtn" title="呼出速度调节盘">⏱ 1分/秒 ▴</button>
  <button id="modebtn" title="当前：理论模式（图定时刻表）">🌙 理论模式</button>
  <button id="fsbtn" title="全屏显示">⛶ 全屏</button>
  <span id="clock">--:--</span>
  <input id="scrub" type="range" title="拖动进度条">
- <input id="tinput" type="text" placeholder="23:30" title="输入时刻，00:00–07:59 视为次日">
+ <input id="tinput" type="text" placeholder="23:30" title="输入时刻，00:00–11:59 视为次日">
  <button id="jump">跳转</button>
  <span id="bcount">运行 0 辆</span>
 </div>
 <div id="speedpanel" hidden>
- <div class="sphead"><span class="sptitle">模拟速度调节盘</span><span id="speedval">30分/秒</span></div>
+ <div class="sphead"><span class="sptitle">模拟速度调节盘</span><span id="speedval">1分/秒</span></div>
  __GAUGE__
  <div class="sphint">拖动指针 / 点击刻度换挡 · ←→ 键微调<br>低速档 10s/20s/30s 为「秒/秒」，其余为「分/秒」</div>
 </div>
@@ -434,13 +434,13 @@ html = '''<!DOCTYPE html>
    </div>
    <div class="hsec">
     <h3>运行模拟播放</h3>
-    <p>底部播放条从首班 <b>__SIMSTART__</b> 模拟至收车后 <b>__SIMEND__</b>（末班约 07:22 到达，窗口留有余量防止播放停住）。点击 <b>▶ 播放 / ⏸ 暂停</b> 开始或停止；到达窗口末端自动暂停。</p>
-    <p>拖动<b>进度条</b>任意定位；在时刻框输入时间后点 <b>跳转</b> 或按回车精确跳转，<b>00:00–07:59 视为次日</b>。右侧「运行 N 辆」实时显示在途车辆数。</p>
+    <p>底部播放条从首班 <b>__SIMSTART__</b> 模拟至收车后 <b>__SIMEND__</b>（理论末班约 07:23 到达；现实模式叠加延误后最晚约 08:07 收车，窗口留有余量防止播放停住）。点击 <b>▶ 播放 / ⏸ 暂停</b> 开始或停止；到达窗口末端自动暂停。</p>
+    <p>拖动<b>进度条</b>任意定位；在时刻框输入时间后点 <b>跳转</b> 或按回车精确跳转，<b>00:00–11:59 视为次日</b>。右侧「运行 N 辆」实时显示在途车辆数。</p>
    </div>
    <div class="hsec">
     <h3>速度调节盘</h3>
-    <p>点击 <b>⏱ 速度按钮</b> 呼出指针式调节盘：拖动指针或点击刻度换挡，聚焦后按 <b>← →</b>（或 ↑ ↓）微调。再次点击速度按钮或按 Esc 收起。</p>
-    <p>档位：低速 <b>10 / 20 / 30 秒每秒</b>（真实节奏），以及 <b>1 / 5 / 15 / 20 / 30 / 60 / 120 分每秒</b>（快进）。默认 30 分/秒。</p>
+    <p>点击 <b>⏱ 速度按钮</b> 呼出指针式调节盘：拖动指针或点击刻度换挡，呼出后按 <b>← →</b>（或 ↑ ↓）微调。再次点击速度按钮或按 Esc 收起。</p>
+    <p>档位：低速 <b>10 / 20 / 30 秒每秒</b>（真实节奏），以及 <b>1 / 5 / 15 / 20 / 30 / 60 / 120 分每秒</b>（快进）。默认 1 分/秒。</p>
    </div>
    <div class="hsec">
     <h3>站点弹窗</h3>
@@ -480,7 +480,7 @@ html = '''<!DOCTYPE html>
    </div>
    <div class="hsec">
     <h3>快捷键</h3>
-    <p><b>Esc</b>：依次关闭说明弹窗 / 闪灯图 / 速度盘。<b>← →</b>（速度盘聚焦时）：微调模拟速度。<b>回车</b>（时刻框内）：跳转至输入时刻。</p>
+    <p><b>Esc</b>：依次关闭说明弹窗 / 闪灯图 / 速度盘。<b>← →</b>（速度盘打开时）：微调模拟速度。<b>回车</b>（时刻框内）：跳转至输入时刻。</p>
    </div>
    <div class="hsec">
     <h3>移动端 / 竖屏使用</h3>
@@ -552,7 +552,7 @@ const chipState = {};
 const ORDER = {}; DATA.routes.forEach((r, i) => ORDER[r.id] = i);
 
 // ---------- operation simulator ----------
-const SIM = {t: SCHED.start, playing: false, speed: 30};
+const SIM = {t: SCHED.start, playing: false, speed: 1};
 let dirty = true, dragging = false;
 const pool = new Map();
 const fmtT = m => {
@@ -957,7 +957,7 @@ const gfill = document.getElementById('gfill');
 const speedval = document.getElementById('speedval');
 const speedbtn = document.getElementById('speedbtn');
 const speedpanel = document.getElementById('speedpanel');
-let gearIdx = 7, gdrag = false;
+let gearIdx = 3, gdrag = false;
 function setSpeed(i) {
   gearIdx = Math.max(0, Math.min(GEARS.length - 1, i));
   SIM.speed = GEARS[gearIdx];
@@ -988,10 +988,9 @@ function gaugePick(e) {
 gsvg.addEventListener('pointerdown', e => { gdrag = true; gsvg.setPointerCapture(e.pointerId); gaugePick(e); e.preventDefault(); });
 gsvg.addEventListener('pointermove', e => { if (gdrag) gaugePick(e); });
 gsvg.addEventListener('pointerup', () => { gdrag = false; });
-gsvg.addEventListener('keydown', e => {
-  if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { setSpeed(gearIdx + 1); e.preventDefault(); }
-  else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { setSpeed(gearIdx - 1); e.preventDefault(); }
-});
+// ← → speed nudge lives at window level (keydown handler below) so it works
+// whenever the dial is open — the old gsvg-level listener never fired because
+// opening the panel leaves focus on the speed button, not the SVG.
 const setSpeedPanel = open => {
   speedpanel.hidden = !open;
   speedbtn.classList.toggle('on', open);
@@ -1026,7 +1025,7 @@ if (fsbtn) {
 document.addEventListener('pointerdown', e => {
   if (!speedpanel.hidden && !speedpanel.contains(e.target) && e.target !== speedbtn) setSpeedPanel(false);
 });
-setSpeed(7);
+setSpeed(3);
 
 // ---------- live stop popup ----------
 let livePopup = null, lastPop = 0;
@@ -1369,10 +1368,19 @@ document.getElementById('helpclose').onclick = closeHelp;
 helpq.oninput = helpSearch;
 helpEl.addEventListener('click', e => { if (e.target === helpEl) closeHelp(); });
 window.addEventListener('keydown', e => {
-  if (e.key !== 'Escape') return;
-  if (!helpEl.hidden) { closeHelp(); return; }
-  if (flash) closeFlash();
-  if (!speedpanel.hidden) setSpeedPanel(false);
+  const tag = (e.target && e.target.tagName) || '';
+  if (e.key === 'Escape') {
+    if (!helpEl.hidden) { closeHelp(); return; }
+    if (flash) closeFlash();
+    if (!speedpanel.hidden) setSpeedPanel(false);
+    return;
+  }
+  // ← → / ↑ ↓ nudge the simulation speed while the dial is open, unless the
+  // user is typing in a field (so the time box / scrubber keep native arrows).
+  if (!speedpanel.hidden && tag !== 'INPUT' && tag !== 'TEXTAREA') {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { setSpeed(gearIdx + 1); e.preventDefault(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { setSpeed(gearIdx - 1); e.preventDefault(); }
+  }
 });
 
 function renderSim() {
