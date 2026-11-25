@@ -72,7 +72,8 @@ const ctx = vm.createContext({
 });
 vm.runInContext(src + '\n;globalThis.__test={SIM,SCHED,DATA,posAt,renderSim,doJump,fmtT,fmtSpeed,fmtWait,nextArrivals,chipState,pool,playBtn,scrub,loop,ORDER,' +
   'setSpeed,gaugePick,GEARS,gneedle,gfill,speedval,setSpeedPanel,busState,renderBoard,bbody,openFlash,updateFlash,closeFlash,' +
-  'get livePopup(){return livePopup}, set livePopup(v){livePopup=v}, get flash(){return flash}, get gearIdx(){return gearIdx}, depPlan, FSP};',
+  'get livePopup(){return livePopup}, set livePopup(v){livePopup=v}, get flash(){return flash}, get gearIdx(){return gearIdx}, depPlan, FSP,' +
+  'placeFlashBus, flashGeom, openHelp, closeHelp, helpSearch};',
   ctx, { timeout: 30000 });
 const T = ctx.__test || (ctx.globalThis && ctx.globalThis.__test);
 let pass = 0, fail = 0;
@@ -297,6 +298,35 @@ ok(byId['fd' + i27].className.includes('skip'), 'flash dot marked skip');
 ok(byId['fstatv'].textContent === '飞站通过不停车', 'flash status 飞站通过');
 ok(byId['finner'].innerHTML.includes('ftag'), 'flash stop label carries 飞 tag');
 T.closeFlash();
+
+// 14. origin stop labelled 始发站 (not 距起点0.0km)
+const rY1 = T.DATA.routes.find(x => x.id === 'Y1'), vY1 = T.SCHED.dirs['Y1|0'];
+const onm = rY1.dirs[0].stops[0], ost = T.DATA.stops[onm];
+T.SIM.t = vY1.deps[0] - 5;
+const ho = T.nextArrivals(onm, ost);
+ok(ho.includes('始发站'), 'origin stop shows 始发站');
+ok(!ho.includes('距起点 <b>0.0</b>'), 'origin no longer shows 距起点0.0km');
+
+// 15. flash bus marker / lit track / follow scroll stay in sync (no wobble)
+const depA = v1.deps.find(dp => dp <= 1470 && dp + v1.run >= 1470);
+T.SIM.t = 1470; T.openFlash('Y1|0|' + v1.deps.indexOf(depA));
+ok(byId['fbus'].style.left === byId['flit'].style.width, 'bus left === lit width (synced)');
+const l1 = parseFloat(byId['fbus'].style.left);
+T.SIM.t = 1480; T.updateFlash();
+const l2 = parseFloat(byId['fbus'].style.left);
+ok(byId['fbus'].style.left === byId['flit'].style.width, 'still synced after advance');
+ok(l2 > l1, 'bus advances with sim');
+ok(parseFloat(byId['fstrip'].scrollLeft) >= 0, 'follow scroll clamped >= 0');
+T.placeFlashBus();
+ok(byId['fbus'].style.left === byId['flit'].style.width, 'placeFlashBus keeps sync');
+T.closeFlash();
+
+// 16. searchable help modal open/close
+T.openHelp();
+ok(byId['help'].hidden === false, 'help opens');
+T.closeHelp();
+ok(byId['help'].hidden === true, 'help closes');
+ok(typeof T.helpSearch === 'function', 'helpSearch defined');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

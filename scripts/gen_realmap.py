@@ -212,8 +212,9 @@ html = '''<!DOCTYPE html>
  .bwrap::-webkit-scrollbar-thumb:hover{background:#5a4a1e}
  #board table{width:100%;border-collapse:collapse;font-size:12px}
  #board th{position:sticky;top:0;background:#0c0a04;color:#8a6d3b;text-align:left;padding:6px 7px;border-bottom:1px solid #3a2f14;font-size:10.5px;letter-spacing:1px;z-index:1}
- #board td{padding:5px 7px;border-bottom:1px solid #171208;color:#e8c98a;white-space:nowrap}
- #board td.bseg{white-space:normal;min-width:110px}
+ #board td{height:26px;padding:0 7px;border-bottom:1px solid #171208;color:#e8c98a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ #board td.bseg{min-width:110px;max-width:180px}
+ #board td.bdir{max-width:150px}
  #board tbody tr:hover td{background:#171208;cursor:pointer}
  .bled{font-weight:bold;text-shadow:0 0 8px currentColor}
  .bseg{color:#ffd97a}
@@ -261,12 +262,38 @@ html = '''<!DOCTYPE html>
  .flab.above{top:12px}
  .flab.below{top:76px}
  .flab.end{color:#e8ecf8;font-weight:bold}
- .fbus{position:absolute;top:47px;width:24px;height:24px;margin-left:-12px;transition:left .25s linear}
+ .fbus{position:absolute;top:47px;width:24px;height:24px;margin-left:-12px}
  .fbuscore{position:absolute;inset:6px;border-radius:50%;box-shadow:0 0 12px currentColor,0 0 4px #fff inset}
  .fbusring{position:absolute;inset:0;border-radius:50%;border:2px solid currentColor;animation:fring 1.4s ease-out infinite}
  @keyframes fblink{0%,100%{opacity:1}50%{opacity:.2}}
  @keyframes fpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.5)}}
  @keyframes fring{0%{transform:scale(.6);opacity:1}100%{transform:scale(1.7);opacity:0}}
+ /* ---- searchable help modal (summoned by top-left button) ---- */
+ .helpbtn{background:#1c2547;color:#c6d2f2;border:1px solid #2c3a6e;border-radius:6px;padding:5px 11px;cursor:pointer;font-size:12.5px;font-family:inherit;box-shadow:0 1px 5px rgba(0,0,0,.4)}
+ .helpbtn:hover{background:#2c3a6e;color:#ffd97a}
+ #help{position:fixed;inset:0;z-index:2000;background:rgba(4,6,14,.74);display:flex;align-items:center;justify-content:center;padding:24px}
+ #help[hidden]{display:none}
+ .hcard{width:min(760px,100%);max-height:86vh;display:flex;flex-direction:column;background:#0d1226;border:1px solid #2c3a6e;border-radius:14px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.7),0 0 40px rgba(91,141,239,.12)}
+ .hhead{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #1c2547;flex-wrap:wrap}
+ .htitle{font-size:15px;font-weight:bold;color:#e8ecf8;letter-spacing:1px;white-space:nowrap}
+ #helpq{flex:1;min-width:160px;background:#0c0a04;border:1px solid #3a2f14;color:#ffd97a;border-radius:6px;padding:6px 11px;font-family:inherit;font-size:12.5px}
+ #helpq::placeholder{color:#6b5527}
+ #helpcount{color:#8a6d3b;font-size:11px;white-space:nowrap}
+ #helpclose{background:#141c3d;color:#c6d2f2;border:1px solid #2c3a6e;border-radius:6px;padding:5px 11px;cursor:pointer;font-size:12px}
+ #helpclose:hover{background:#2c3a6e}
+ .hbody{overflow:auto;padding:6px 18px 14px;flex:1}
+ .hbody::-webkit-scrollbar{width:9px}
+ .hbody::-webkit-scrollbar-track{background:#0d1226}
+ .hbody::-webkit-scrollbar-thumb{background:#2c3a6e;border-radius:5px}
+ .hsec{padding:11px 0;border-bottom:1px solid #161d3a}
+ .hsec[hidden]{display:none}
+ .hsec h3{margin:0 0 5px;font-size:13.5px;color:#ffd97a;letter-spacing:.5px}
+ .hsec p{margin:0 0 6px;font-size:12.5px;color:#aab8e0;line-height:1.85}
+ .hsec p:last-child{margin-bottom:0}
+ .hsec b{color:#e8ecf8}
+ .hbody mark{background:#ffd97a;color:#0b1020;border-radius:2px;padding:0 1px}
+ .hempty{padding:26px;text-align:center;color:#8a6d3b;font-size:12.5px}
+ .hempty[hidden]{display:none}
  @media (max-width:1100px){
   aside{width:330px} #map{right:330px} #simbar{right:330px}
   #board{right:342px;width:380px}
@@ -349,13 +376,74 @@ html = '''<!DOCTYPE html>
  </div>
  <div class="btns"><button id="all">全选</button><button id="none">全不选</button><button id="ss">仅守时公交</button><button id="fit">全图范围</button></div>
  <div id="chips"></div>
- <div class="note">
-  <b>读图</b>：白色圆点=站点（多线换乘站带黑边）；<span style="color:#fbbf24">琥珀菱形</span>=单向站（仅某一方向停靠，弹窗注明方向）；虚线=地铁末班守时公交。点击站点查看各线路停靠方向；点击线路名缩放到该线。<br>
-  守时1号线：泰冯路地铁站西23:10发车接驳S8末班（21:40方州广场东回送）；守时2号线：月苑南路23:20–00:20 / 迈皋桥东23:40–00:40接驳1号线末班。<br>
-  Y6/Y9/Y14/Y15/Y18/Y19/Y20已撤销。Y4/Y17/Y21存在区间车（对向起讫站不同）。Y30/Y41末班早于午夜。__SUBNOTE__<br><br>
-  <b>运行模拟</b>：底部播放条从首班（__SIMSTART__）模拟至收车后（__SIMEND__，末班约07:22到达，窗口留有余量）。点击 <b>⏱ 速度按钮</b>呼出速度调节盘，拖动指针换挡：10/20/30秒每秒 + 1/5/15/20/30/60/120分每秒。发车时刻采用百度地图公布的<b>固定发车时刻表</b>（守时2号线按10分钟间隔；溧水Y1/Y2、高淳801/802仅公布首末班时段，按约30分钟间隔估算）；每班发车均为<b>场站独立发出</b>——夜间公交到终点即收车，不原地折返。各站到站时刻按分段限速旅速模型<b>估算</b>：常规道路限速40km/h，折减红绿灯/转弯后旅速约__VR__ km/h（百度百余段行程时间校准）；江北大道地面辅路约__VA__ km/h（守时1号线公布全程70分钟校准）；高速/过江通道等无站区段限速70km/h，按__VF__ km/h计；每站停__DWELL__分钟、急弯每次加__TP__分钟。<b>站点弹窗随模拟实时刷新</b>，给出下一班到站的等待时间与距本站里程；<b>运行大屏</b>常驻右上角（可拖动、右下角缩放、最小化），按线路编号列出全部在途车辆及当前区间；<b>点击小车或大屏行</b>在页面顶端打开地铁闪灯图式运行图，闪烁显示当前站与下一站。输入时刻时 00:00–07:59 视为次日。
- </div>
 </aside>
+<div id="help" hidden>
+ <div class="hcard">
+  <div class="hhead">
+   <span class="htitle">📖 使用说明</span>
+   <input id="helpq" type="text" placeholder="搜索说明内容（如：速度 / 飞站 / 大屏 / 始发站）…">
+   <span id="helpcount"></span>
+   <button id="helpclose">✕ 关闭</button>
+  </div>
+  <div class="hbody" id="helpbody">
+   <div class="hsec">
+    <h3>读图基础</h3>
+    <p>白色圆点 = 站点，多线换乘站带黑边；<span style="color:#fbbf24">琥珀菱形</span> = 单向站（仅某一方向停靠，弹窗注明方向）；虚线 = 地铁末班守时公交。</p>
+    <p>点击站点弹出详情，查看各线路在此的停靠方向与下一班到站；点击侧栏线路名可缩放到该线走向。左上角图层控件可切换高德（GCJ02，国内快）/ OSM德国 / OSM标准（WGS84）底图。</p>
+   </div>
+   <div class="hsec">
+    <h3>线路筛选与显示</h3>
+    <p>侧栏顶部按钮：<b>全选</b> / <b>全不选</b> / <b>仅守时公交</b> / <b>全图范围</b>（缩放到全网）。每条线路前的复选框控制是否绘制，点击线路色块或名称缩放到该线。</p>
+    <p>显示开关：<b>显示对向走向</b>（同时画出反方向）、<b>单向站标记</b>（琥珀菱形）、<b>站点</b>（圆点）、<b>底图压暗</b>（夜间滤镜，突出线路）。</p>
+   </div>
+   <div class="hsec">
+    <h3>运行模拟播放</h3>
+    <p>底部播放条从首班 <b>__SIMSTART__</b> 模拟至收车后 <b>__SIMEND__</b>（末班约 07:22 到达，窗口留有余量防止播放停住）。点击 <b>▶ 播放 / ⏸ 暂停</b> 开始或停止；到达窗口末端自动暂停。</p>
+    <p>拖动<b>进度条</b>任意定位；在时刻框输入时间后点 <b>跳转</b> 或按回车精确跳转，<b>00:00–07:59 视为次日</b>。右侧「运行 N 辆」实时显示在途车辆数。</p>
+   </div>
+   <div class="hsec">
+    <h3>速度调节盘</h3>
+    <p>点击 <b>⏱ 速度按钮</b> 呼出指针式调节盘：拖动指针或点击刻度换挡，聚焦后按 <b>← →</b>（或 ↑ ↓）微调。再次点击速度按钮或按 Esc 收起。</p>
+    <p>档位：低速 <b>10 / 20 / 30 秒每秒</b>（真实节奏），以及 <b>1 / 5 / 15 / 20 / 30 / 60 / 120 分每秒</b>（快进）。默认 30 分/秒。</p>
+   </div>
+   <div class="hsec">
+    <h3>站点弹窗</h3>
+    <p>站点弹窗<b>随模拟实时刷新</b>，按线路给出下一班到站时刻、<b>等待时间</b>（即将到站 / X 分钟）与<b>距本站里程</b>；该方向的<b>始发站</b>直接标注「始发站」，待发车车辆标注「距起点 X km（待发车）」。</p>
+    <p>弹窗打开时拖动地图不会被强制拉回；已收车方向显示「已收车」，时段飞站方向显示「飞站通过不停靠」。</p>
+   </div>
+   <div class="hsec">
+    <h3>运行大屏</h3>
+    <p>常驻右上角的火车站大屏式列表，按线路编号排序（主城 → 溧水 → 高淳），列出全部在途车辆的发车时刻、当前区间、下一站、预计到达与状态。<b>每行行高固定</b>，车辆增减时表格不会上下抖动。</p>
+    <p>拖动<b>标题栏</b>移动位置，拖动<b>右下角</b>缩放，点 <b>—</b> 最小化 / 还原。筛选框支持按线路 / 站点 / 方向过滤；「仅地图已选线路」联动侧栏勾选。<b>点击任意行</b>定位该车辆并打开闪灯图。</p>
+   </div>
+   <div class="hsec">
+    <h3>闪灯图（车辆运行图）</h3>
+    <p><b>点击地图上的小车或大屏行</b>，在页面顶端打开地铁闪灯图式运行图：站点圆点依次点亮，当前站与下一站闪烁，显示当前区间、下一站、预计到达与状态。</p>
+    <p>勾选 <b>跟随车辆</b> 后画面平滑跟随车标移动（车标与进度同步，无晃动）；到终点后车标停在末站圆点上不再前冲。点 <b>✕ 关闭</b> 或按 Esc 关闭。</p>
+   </div>
+   <div class="hsec">
+    <h3>时段飞站规则</h3>
+    <p><b>双龙街</b>站 <b>00:00–05:00</b> 飞站通过不停靠（走高架），仅影响 Y21 / Y27 的<b>出城方向</b>，进城方向正常停靠。飞站班次省略该站停站时间，后续站点到站时刻相应提前。</p>
+    <p>站点弹窗、运行大屏（飞站状态）与闪灯图（虚线圆点 + 「飞」标签）均会标注飞站。</p>
+   </div>
+   <div class="hsec">
+    <h3>数据与旅速模型</h3>
+    <p>发车时刻采用百度地图公布的<b>固定发车时刻表</b>（守时2号线按 10 分钟间隔；溧水 Y1/Y2、高淳 801/802 仅公布首末班时段，按约 30 分钟间隔估算）。每班均为<b>场站独立发出</b>——夜间公交到终点即收车，不原地折返。</p>
+    <p>各站到站时刻按<b>分段限速旅速模型估算</b>：常规道路限速 40km/h，折减红绿灯/转弯后旅速约 <b>__VR__ km/h</b>（百度百余段行程时间校准）；江北大道地面辅路约 <b>__VA__ km/h</b>（守时1号线公布全程 70 分钟校准）；高速/过江通道等无站区段限速 70km/h，按 <b>__VF__ km/h</b> 计；每站停 <b>__DWELL__</b> 分钟、急弯每次加 <b>__TP__</b> 分钟。</p>
+   </div>
+   <div class="hsec">
+    <h3>守时公交与线路备注</h3>
+    <p>守时1号线：泰冯路地铁站西 23:10 发车接驳 S8 末班（21:40 方州广场东回送）；守时2号线：月苑南路 23:20–00:20 / 迈皋桥东 23:40–00:40 接驳 1 号线末班。</p>
+    <p>Y6/Y9/Y14/Y15/Y18/Y19/Y20 已撤销；Y4/Y17/Y21 存在区间车（对向起讫站不同）；Y30/Y41 末班早于午夜。__SUBNOTE__</p>
+   </div>
+   <div class="hsec">
+    <h3>快捷键</h3>
+    <p><b>Esc</b>：依次关闭说明弹窗 / 闪灯图 / 速度盘。<b>← →</b>（速度盘聚焦时）：微调模拟速度。<b>回车</b>（时刻框内）：跳转至输入时刻。</p>
+   </div>
+  </div>
+  <div class="hempty" id="helpempty" hidden>没有匹配的说明，换个关键词试试。</div>
+ </div>
+</div>
 <script>
 const DATA = __PAYLOAD__;
 const SCHED = __SCHED__;
@@ -397,6 +485,11 @@ const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
 amap.addTo(map);
 L.control.layers({'高德（国内快）': amap, 'OSM德国': osmde, 'OSM标准': osm}, null, {position: 'topleft'}).addTo(map);
 L.control.scale({imperial: false, position: 'topright'}).addTo(map);
+const helpBtn = L.DomUtil.create('button', 'helpbtn');
+helpBtn.type = 'button'; helpBtn.textContent = '📖 说明'; helpBtn.title = '查看使用说明（可搜索）';
+L.DomEvent.disableClickPropagation(helpBtn);
+helpBtn.onclick = openHelp;
+map.addControl(new (L.Control.extend({onAdd() { return helpBtn; }}))({position: 'topleft'}));
 
 let MODE = 'gcj';
 const pt = (lat, lng) => MODE === 'gcj' ? GCJ(lat, lng) : [lat, lng];
@@ -504,7 +597,8 @@ function nextArrivals(nm, st) {
       const dep = v.deps[arrK], plan = depPlan(v, key, arrK);
       const wait = dep + arrAt - SIM.t;
       let distTxt;
-      if (dep > SIM.t) distTxt = '距起点 <b>' + v.stopKm[idx].toFixed(1) + '</b> km（待发车）';
+      if (idx === 0) distTxt = '始发站';
+      else if (dep > SIM.t) distTxt = '距起点 <b>' + v.stopKm[idx].toFixed(1) + '</b> km（待发车）';
       else distTxt = '距本站 <b>' + Math.max(0, v.stopKm[idx] - posAt(v, SIM.t - dep, plan)[3]).toFixed(1) + '</b> km';
       h += '<div class="prow"><span style="color:' + r.color + '">' + r.label + '</span> ' + dest + ' → ' + fmtT(dep + arrAt) +
         '<span class="pwait">等待 <b>' + fmtWait(wait) + '</b> · ' + distTxt + '</span></div>';
@@ -791,16 +885,14 @@ function openFlash(key) {
   document.getElementById('fdep').textContent = '本次发车 ' + fmtT(v.deps[k]);
   updateFlash();
 }
-function updateFlash() {
-  if (!flash) return;
-  const v = flash.v, d = flash.d, r = flash.r, plan = flash.plan;
+function flashGeom() {
+  const v = flash.v, plan = flash.plan;
   const dep = v.deps[flash.k];
   const st = plan ? plan.st : v.stopT, sk = plan ? plan.sk : null;
   const run = plan ? plan.run : v.run, dw = SCHED.model.dwell, n = st.length;
   const el = Math.max(0, Math.min(run, SIM.t - dep));
   let i = 0;
   while (i < n - 1 && st[i + 1] <= el) i++;
-  const arrived = el >= run;
   const skipped = !!(sk && sk[i]);
   const dwelling = i < n - 1 && !skipped && el < st[i] + dw;
   const passing = i < n - 1 && skipped && el < st[i] + dw;
@@ -808,6 +900,31 @@ function updateFlash() {
   // push the bus a full stop-spacing past the end of the track.
   const frac = i < n - 1 ? Math.max(0, Math.min(1, (el - st[i]) / (st[i + 1] - st[i]))) : 0;
   const pos = 30 + (i + (dwelling ? 0 : frac)) * FSP;
+  return {dep, st, sk, run, dw, n, el, i, skipped, dwelling, passing, pos, arrived: el >= run};
+}
+// Bus marker, lit track and follow-scroll all derive from the same instantaneous
+// position and move together every frame, so they never drift apart. The old
+// CSS left-transition lagging behind an instant scrollLeft made the marker wobble.
+function placeFlashBus() {
+  if (!flash) return;
+  const pos = flashGeom().pos;
+  const bus = document.getElementById('fbus');
+  if (bus) bus.style.left = pos + 'px';
+  const lit = document.getElementById('flit');
+  if (lit) lit.style.width = pos + 'px';
+  if (document.getElementById('ffollow').checked) {
+    const strip = document.getElementById('fstrip');
+    const cw = strip.clientWidth || 600;
+    const max = Math.max(0, (strip.scrollWidth || 0) - cw);
+    strip.scrollLeft = Math.max(0, Math.min(max, pos - cw / 2));
+  }
+}
+function updateFlash() {
+  if (!flash) return;
+  const d = flash.d, r = flash.r;
+  const g = flashGeom();
+  const dep = g.dep, st = g.st, sk = g.sk, run = g.run, n = g.n, el = g.el, i = g.i;
+  const dwelling = g.dwelling, passing = g.passing, arrived = g.arrived;
   let j = i + 1;
   while (j < n - 1 && sk && sk[j]) j++;
   document.getElementById('fclock').textContent = fmtT(SIM.t);
@@ -815,32 +932,73 @@ function updateFlash() {
     : dwelling ? d.stops[i] : passing ? d.stops[i] + '（飞站通过）' : d.stops[i] + ' → ' + d.stops[i + 1];
   document.getElementById('fnext').textContent = i < n - 1 ? d.stops[j] : '—';
   document.getElementById('feta').textContent = i < n - 1 ? fmtT(dep + st[j]) : '已到达';
-  document.getElementById('fstatv').textContent = SIM.t < dep ? '待发车' : el >= run ? '终到收车'
+  document.getElementById('fstatv').textContent = SIM.t < dep ? '待发车' : arrived ? '终到收车'
     : dwelling ? '停靠上下客' : passing ? '飞站通过不停车' : '区间运行';
   const lit = document.getElementById('flit');
-  lit.style.width = pos + 'px'; lit.style.background = r.color; lit.style.color = r.color;
+  lit.style.background = r.color; lit.style.color = r.color;
   const seg = document.getElementById('fseg');
   if (i < n - 1 && !dwelling && el < run) {
     seg.style.display = 'block'; seg.style.left = (30 + i * FSP) + 'px';
     seg.style.width = FSP + 'px'; seg.style.background = r.color; seg.style.color = r.color;
   } else seg.style.display = 'none';
-  const bus = document.getElementById('fbus');
-  bus.style.left = pos + 'px';
   for (let jj = 0; jj < n; jj++) {
     const dot = document.getElementById('fd' + jj);
     const isSk = !!(sk && sk[jj]);
     dot.className = 'fdot' + (isSk ? ' skip' : '') + (jj < i ? ' done' : jj === i ? (dwelling || arrived ? ' done cur' : ' cur') : jj === i + 1 ? ' next' : '');
     dot.style.background = jj <= i && !isSk ? r.color : '#0b1126';
   }
-  if (document.getElementById('ffollow').checked) {
-    const strip = document.getElementById('fstrip');
-    strip.scrollLeft = pos - (strip.clientWidth || 600) / 2;
-  }
+  placeFlashBus();
 }
 const closeFlash = () => { flash = null; document.getElementById('flash').hidden = true; };
 document.getElementById('fclose').onclick = closeFlash;
+// ---------- searchable help modal ----------
+const helpEl = document.getElementById('help');
+const helpq = document.getElementById('helpq');
+const helpSecs = Array.prototype.slice.call(document.querySelectorAll('#helpbody .hsec'));
+helpSecs.forEach(s => { s.dataset.orig = s.innerHTML; });
+function helpHighlight(sec, q) {
+  if (!document.createTreeWalker || typeof NodeFilter === 'undefined') return;
+  const walker = document.createTreeWalker(sec, NodeFilter.SHOW_TEXT, null);
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  for (const node of nodes) {
+    const text = node.nodeValue, lower = text.toLowerCase();
+    let idx = lower.indexOf(q);
+    if (idx < 0) continue;
+    const frag = document.createDocumentFragment();
+    let last = 0;
+    while (idx >= 0) {
+      frag.appendChild(document.createTextNode(text.slice(last, idx)));
+      const mark = document.createElement('mark');
+      mark.textContent = text.slice(idx, idx + q.length);
+      frag.appendChild(mark);
+      last = idx + q.length;
+      idx = lower.indexOf(q, last);
+    }
+    frag.appendChild(document.createTextNode(text.slice(last)));
+    node.parentNode.replaceChild(frag, node);
+  }
+}
+function helpSearch() {
+  const q = (helpq.value || '').trim().toLowerCase();
+  let shown = 0;
+  for (const s of helpSecs) {
+    s.innerHTML = s.dataset.orig;
+    const match = !q || s.textContent.toLowerCase().includes(q);
+    s.hidden = !match;
+    if (match) { shown++; if (q) helpHighlight(s, q); }
+  }
+  document.getElementById('helpcount').textContent = q ? shown + ' / ' + helpSecs.length + ' 节' : '';
+  document.getElementById('helpempty').hidden = shown !== 0;
+}
+function openHelp() { helpEl.hidden = false; helpSearch(); if (helpq.focus) helpq.focus(); }
+function closeHelp() { helpEl.hidden = true; }
+document.getElementById('helpclose').onclick = closeHelp;
+helpq.oninput = helpSearch;
+helpEl.addEventListener('click', e => { if (e.target === helpEl) closeHelp(); });
 window.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
+  if (!helpEl.hidden) { closeHelp(); return; }
   if (flash) closeFlash();
   if (!speedpanel.hidden) setSpeedPanel(false);
 });
@@ -897,6 +1055,7 @@ function loop(now) {
     dirty = true;
   }
   if (dirty) renderSim();
+  if (flash) placeFlashBus();
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
