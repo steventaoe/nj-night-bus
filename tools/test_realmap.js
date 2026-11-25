@@ -68,13 +68,16 @@ const ctx = vm.createContext({
   L: autoMock('L'),
   performance: { now: () => tsNow },
   requestAnimationFrame: cb => { rafCb = cb; },
+  setTimeout: () => 0,
+  clearTimeout: () => {},
   console,
 });
 vm.runInContext(src + '\n;globalThis.__test={SIM,SCHED,DATA,posAt,renderSim,doJump,fmtT,fmtSpeed,fmtWait,nextArrivals,chipState,pool,playBtn,scrub,loop,ORDER,' +
   'setSpeed,gaugePick,GEARS,gneedle,gfill,speedval,setSpeedPanel,busState,renderBoard,bbody,openFlash,updateFlash,closeFlash,' +
   'get livePopup(){return livePopup}, set livePopup(v){livePopup=v}, get flash(){return flash}, get gearIdx(){return gearIdx}, depPlan, FSP,' +
   'placeFlashBus, flashGeom, openHelp, closeHelp, helpSearch, stopScale, paintStops, STOP_R, STOP_W,' +
-  'get REAL(){return REAL}, setReal, planFor, buildReal, posReal, REAL_CFG, dirLights, peakW, hashStr, mulberry32};',
+  'get REAL(){return REAL}, setReal, planFor, buildReal, posReal, REAL_CFG, dirLights, peakW, hashStr, mulberry32,' +
+  'isNarrow, playLabel, speedLabel, modeLabel, fsLabel, fsActive, refreshBarLabels, applyNarrowBoard};',
   ctx, { timeout: 30000 });
 const T = ctx.__test || (ctx.globalThis && ctx.globalThis.__test);
 let pass = 0, fail = 0;
@@ -377,6 +380,34 @@ T.openFlash(keyR + '|0'); T.updateFlash(); T.closeFlash();
 ok(true, 'flash line-map renders in realistic mode');
 T.setReal(false);
 ok(T.REAL === false && T.planFor(vR, keyR, 0) === null, 'setReal(false) restores theoretical planFor');
+
+// 19. mobile / portrait adaptation (drawer, fullscreen button, compact labels, auto-mini board)
+ok(typeof T.isNarrow === 'function', 'isNarrow defined');
+ctx.window.innerWidth = 1400;
+ok(T.isNarrow() === false, 'desktop (1400px) is not narrow');
+ok(/播放|暂停/.test(T.playLabel()), 'desktop play label carries text');
+ok(T.modeLabel().length > 2 && T.speedLabel(false).indexOf('⏱ ') === 0, 'desktop mode/speed labels carry text');
+ok(T.fsActive() === false, 'fsActive false (no fullscreen in sandbox)');
+ok(typeof byId['fsbtn'].onclick === 'function', 'fullscreen button wired');
+ctx.window.innerWidth = 500;
+ok(T.isNarrow() === true, 'narrow at 500px');
+ok(T.playLabel() === '▶' || T.playLabel() === '⏸', 'narrow play label icon-only');
+ok(T.modeLabel() === '🌙' || T.modeLabel() === '🌆', 'narrow mode label icon-only');
+ok(T.speedLabel(false) === '⏱ ▴' && T.speedLabel(true) === '⏱ ▾', 'narrow speed label icon-only');
+T.refreshBarLabels();
+ok(byId['sidetoggle'].textContent === '☰', 'refreshBarLabels compacts sidetoggle on narrow');
+ok(byId['play'].textContent === '▶' || byId['play'].textContent === '⏸', 'refreshBarLabels compacts play button');
+const sideT = byId['sidetoggle'];
+sideT.onclick();
+ok(documentMock.body.classList.contains('showside'), 'sidetoggle opens the drawer');
+ok(byId['sidebackdrop'].hidden === false, 'backdrop visible while drawer open');
+byId['sidebackdrop'].onclick();
+ok(!documentMock.body.classList.contains('showside'), 'backdrop tap closes the drawer');
+ok(byId['sidebackdrop'].hidden === true, 'backdrop hidden once closed');
+ok(typeof byId['sideclose'].onclick === 'function', 'drawer close button wired');
+T.applyNarrowBoard();
+ok(byId['board'].classList.contains('mini'), 'departure board auto-minimised on narrow screen');
+ctx.window.innerWidth = 1400;
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

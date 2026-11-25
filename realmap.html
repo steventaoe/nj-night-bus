@@ -1,13 +1,21 @@
 <!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0d1226">
 <title>南京夜间公交 · 真实地图</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
- html,body{margin:0;height:100%;background:#0d1226;color:#e8ecf8;font-family:'Microsoft YaHei','PingFang SC',sans-serif}
+ html,body{margin:0;height:100%;overflow:hidden;background:#0d1226;color:#e8ecf8;font-family:'Microsoft YaHei','PingFang SC',sans-serif}
+ @supports(height:100dvh){html,body{height:100dvh}}
  #map{position:absolute;top:0;bottom:0;left:0;right:390px}
  aside{position:absolute;top:0;bottom:0;right:0;width:390px;overflow:auto;background:#0d1226;border-left:1px solid #1c2547;padding:14px 16px;box-sizing:border-box}
+ #sidebackdrop{position:fixed;inset:0;background:rgba(4,6,14,.55);z-index:1250}
+ #sidebackdrop[hidden]{display:none}
+ #sideclose{display:none;position:absolute;top:10px;right:12px;background:#1c2547;color:#c6d2f2;border:1px solid #2c3a6e;border-radius:6px;padding:4px 11px;cursor:pointer;font-size:14px;line-height:1;z-index:3}
  aside::-webkit-scrollbar{width:9px}
  aside::-webkit-scrollbar-track{background:#0d1226}
  aside::-webkit-scrollbar-thumb{background:#2c3a6e;border-radius:5px}
@@ -46,6 +54,8 @@
  #speedbtn.on{background:#3d3212;border-color:#8a6d3b}
  #modebtn{color:#9fd0ff;font-family:Consolas,'Courier New',monospace}
  #modebtn.real{background:#12303d;border-color:#3b7d8a;color:#7fe3ff}
+ #fsbtn{color:#c6d2f2}
+ #fsbtn.on{background:#12303d;border-color:#3b7d8a;color:#7fe3ff}
  #sidetoggle{display:none}
  /* ---- floating speed dial panel ---- */
  #speedpanel{position:absolute;left:12px;bottom:62px;z-index:1200;background:rgba(13,18,38,.97);border:1px solid #2c3a6e;border-radius:12px;padding:12px 16px 10px;box-shadow:0 12px 40px rgba(0,0,0,.55),0 0 24px rgba(91,141,239,.12)}
@@ -178,16 +188,38 @@
   #board{right:342px;width:380px}
  }
  @media (max-width:760px){
-  #map{right:0} #simbar{right:0;flex-wrap:wrap;gap:6px}
-  aside{width:min(340px,88vw);transform:translateX(105%);transition:transform .25s;z-index:1300;box-shadow:-8px 0 30px rgba(0,0,0,.5)}
+  #map{right:0}
+  #simbar{right:0;flex-wrap:wrap;gap:6px;padding:6px 8px;padding-bottom:calc(6px + env(safe-area-inset-bottom))}
+  #simbar button{padding:6px 10px;font-size:12px;min-height:34px}
+  #scrub{flex:1 1 100%;order:50;min-width:0;height:28px}
+  #clock{font-size:15px;min-width:auto}
+  aside{width:min(340px,88vw);transform:translateX(105%);transition:transform .25s;z-index:1300;box-shadow:-8px 0 30px rgba(0,0,0,.5);padding-top:16px;-webkit-overflow-scrolling:touch}
   body.showside aside{transform:none}
   #sidetoggle{display:inline-block}
-  #bcount{min-width:0}
-  #board{right:12px;top:12px;width:min(400px,calc(100vw - 24px));height:min(46vh,400px)}
+  #sideclose{display:block}
+  #bcount{min-width:0;font-size:11px}
+  #board{right:8px;top:8px;width:min(400px,calc(100vw - 16px));height:min(46vh,400px)}
+  #board.mini{width:auto;max-width:calc(100vw - 16px)}
   .bdir{display:none}
   .bclock{font-size:17px}
+  .leaflet-control-scale{display:none}
   .finfo{grid-template-columns:repeat(2,1fr)}
-  #speedpanel{left:8px;bottom:104px}
+  #speedpanel{left:8px;bottom:112px}
+  .helpbtn{padding:7px 11px}
+ }
+ @media (max-width:600px){
+  #tinput,#jump{display:none}
+  #simbar{gap:5px}
+  #simbar button{padding:6px 8px;font-size:11.5px;min-height:36px}
+  #play{min-width:46px}
+  #speedpanel{bottom:120px;left:6px}
+  #flash{width:98vw;top:6px}
+  .fhead{padding:8px 10px;gap:8px}
+  .fclock{font-size:18px}
+  #help{padding:8px}
+  .hcard{max-height:92vh;border-radius:10px}
+  .hhead{gap:6px;padding:10px 12px}
+  .hbody{padding:4px 12px 12px}
  }
 </style></head><body>
 <div id="map"></div>
@@ -196,6 +228,7 @@
  <button id="play">▶ 播放</button>
  <button id="speedbtn" title="呼出速度调节盘">⏱ 30分/秒 ▴</button>
  <button id="modebtn" title="当前：理论模式（图定时刻表）">🌙 理论模式</button>
+ <button id="fsbtn" title="全屏显示">⛶ 全屏</button>
  <span id="clock">--:--</span>
  <input id="scrub" type="range" title="拖动进度条">
  <input id="tinput" type="text" placeholder="23:30" title="输入时刻，00:00–07:59 视为次日">
@@ -244,7 +277,9 @@
  </div>
  <div class="fstrip" id="fstrip"><div class="finner" id="finner"></div></div>
 </div>
-<aside>
+<div id="sidebackdrop" hidden></div>
+<aside id="side">
+ <button id="sideclose" title="关闭线路栏">✕</button>
  <h1>南京夜间公交 · 真实地图</h1>
  <div class="sub">43条线路 · 1081站 · 截至2026-11-20<br>
  走向与站点来自百度地图（2026-07更新）。高德底图使用GCJ02坐标（JS实时转换），OSM底图使用WGS84。</div>
@@ -325,6 +360,11 @@
    <div class="hsec">
     <h3>快捷键</h3>
     <p><b>Esc</b>：依次关闭说明弹窗 / 闪灯图 / 速度盘。<b>← →</b>（速度盘聚焦时）：微调模拟速度。<b>回车</b>（时刻框内）：跳转至输入时刻。</p>
+   </div>
+   <div class="hsec">
+    <h3>移动端 / 竖屏使用</h3>
+    <p>窄屏（≤760px）自动切换移动布局：线路侧栏收起，点底部 <b>☰</b> 按钮调出，点<b>遮罩</b>、右上角 <b>✕</b> 或在栏内<b>向右滑动</b>收起；运行大屏默认最小化为标题条（点 <b>□</b> 展开），不再遮挡地图。控制条按钮精简为图标，进度条独占一行便于拖动。</p>
+    <p>点 <b>⛶ 全屏</b> 进入沉浸式全屏（安卓 Chrome 等支持；iOS Safari 不支持网页元素全屏，此时按钮自动隐藏，可"添加到主屏幕"后以全屏运行）。切换横竖屏或进出全屏时地图自动重算尺寸；手机初始视野聚焦主城（zoom 12），点侧栏「全图范围」可看全网。</p>
    </div>
   </div>
   <div class="hempty" id="helpempty" hidden>没有匹配的说明，换个关键词试试。</div>
@@ -660,13 +700,26 @@ function nextArrivals(nm, st) {
   }
   return h;
 }
+const isNarrow = () => { try { if (window.matchMedia) return window.matchMedia('(max-width:760px)').matches; } catch (e) {} return (window.innerWidth || 1280) <= 760; };
+function playLabel(){ return SIM.playing ? (isNarrow() ? '⏸' : '⏸ 暂停') : (isNarrow() ? '▶' : '▶ 播放'); }
+function speedLabel(open){ return (isNarrow() ? '⏱' : '⏱ ' + fmtSpeed(SIM.speed)) + (open ? ' ▾' : ' ▴'); }
+function modeLabel(){ return REAL ? (isNarrow() ? '🌆' : '🌆 现实模式') : (isNarrow() ? '🌙' : '🌙 理论模式'); }
+function fsLabel(){ return fsActive() ? (isNarrow() ? '🗗' : '🗗 退出全屏') : (isNarrow() ? '⛶' : '⛶ 全屏'); }
+const fsbtn = document.getElementById('fsbtn');
+function refreshBarLabels(){
+  playBtn.textContent = playLabel();
+  speedbtn.textContent = speedLabel(!speedpanel.hidden);
+  modebtn.textContent = modeLabel();
+  if (fsbtn) fsbtn.textContent = fsLabel();
+  const st = document.getElementById('sidetoggle'); if (st) st.textContent = isNarrow() ? '☰' : '☰ 线路';
+}
 const playBtn = document.getElementById('play');
 const scrub = document.getElementById('scrub');
 scrub.min = SCHED.start; scrub.max = SCHED.end; scrub.step = 0.25; scrub.value = SIM.t;
 playBtn.onclick = () => {
   if (!SIM.playing && SIM.t >= SCHED.end - 0.01) SIM.t = SCHED.start;
   SIM.playing = !SIM.playing;
-  playBtn.textContent = SIM.playing ? '⏸ 暂停' : '▶ 播放';
+  playBtn.textContent = playLabel();
   dirty = true;
 };
 scrub.addEventListener('pointerdown', () => { dragging = true; });
@@ -702,7 +755,7 @@ function setSpeed(i) {
   gneedle.setAttribute('transform', 'rotate(' + (90 - a).toFixed(1) + ' 66 70)');
   gfill.setAttribute('stroke-dasharray', (GLEN * frac).toFixed(1) + ' ' + GLEN.toFixed(1));
   speedval.textContent = fmtSpeed(SIM.speed);
-  speedbtn.textContent = '⏱ ' + fmtSpeed(SIM.speed) + (speedpanel.hidden ? ' ▴' : ' ▾');
+  speedbtn.textContent = speedLabel(!speedpanel.hidden);
   gsvg.setAttribute('aria-valuenow', String(SIM.speed));
   document.querySelectorAll('.glab').forEach(t => {
     const on = +t.dataset.i === gearIdx;
@@ -731,13 +784,13 @@ gsvg.addEventListener('keydown', e => {
 const setSpeedPanel = open => {
   speedpanel.hidden = !open;
   speedbtn.classList.toggle('on', open);
-  speedbtn.textContent = '⏱ ' + fmtSpeed(SIM.speed) + (open ? ' ▾' : ' ▴');
+  speedbtn.textContent = speedLabel(open);
 };
 speedbtn.onclick = () => setSpeedPanel(speedpanel.hidden);
 const modebtn = document.getElementById('modebtn');
 function setReal(on) {
   REAL = !!on;
-  modebtn.textContent = REAL ? '🌆 现实模式' : '🌙 理论模式';
+  modebtn.textContent = modeLabel();
   modebtn.classList.toggle('real', REAL);
   modebtn.title = REAL ? '当前：现实模式（随机延误 / 红绿灯 / 堵车 / 停站波动）' : '当前：理论模式（图定时刻表）';
   dirty = true;
@@ -746,6 +799,19 @@ function setReal(on) {
   if (livePopup) livePopup.p.setContent(livePopup.i.html + nextArrivals(livePopup.i.nm, livePopup.i.st));
 }
 modebtn.onclick = () => setReal(!REAL);
+function fsActive(){ return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+function syncFs(){ if (fsbtn) { fsbtn.textContent = fsLabel(); fsbtn.classList.toggle('on', fsActive()); } }
+function toggleFs(){
+  const el = document.documentElement || document.body;
+  if (!fsActive()) { const r = el.requestFullscreen || el.webkitRequestFullscreen; if (r) { try { const p = r.call(el); if (p && p.catch) p.catch(() => {}); } catch (e) {} } }
+  else { const x = document.exitFullscreen || document.webkitExitFullscreen; if (x) { try { x.call(document); } catch (e) {} } }
+}
+if (fsbtn) {
+  fsbtn.onclick = toggleFs;
+  if (!(document.fullscreenEnabled || document.webkitFullscreenEnabled)) fsbtn.style.display = 'none';
+  syncFs();
+}
+['fullscreenchange', 'webkitfullscreenchange'].forEach(ev => document.addEventListener(ev, () => { syncFs(); setTimeout(() => map.invalidateSize(), 80); }));
 document.addEventListener('pointerdown', e => {
   if (!speedpanel.hidden && !speedpanel.contains(e.target) && e.target !== speedbtn) setSpeedPanel(false);
 });
@@ -916,7 +982,32 @@ function locateBus(key) {
   if (board.classList.contains('mini')) minBtn.textContent = '□';
   window.addEventListener('resize', clampBox);
 })();
-document.getElementById('sidetoggle').onclick = () => document.body.classList.toggle('showside');
+const sidebackdrop = document.getElementById('sidebackdrop');
+const sideEl = document.getElementById('side');
+function sideOpen(){ return document.body.classList.contains('showside'); }
+function setSide(open){
+  document.body.classList.toggle('showside', open);
+  if (sidebackdrop) sidebackdrop.hidden = !open;
+  setTimeout(() => map.invalidateSize(), 280);
+}
+document.getElementById('sidetoggle').onclick = () => setSide(!sideOpen());
+const sideclose = document.getElementById('sideclose');
+if (sideclose) sideclose.onclick = () => setSide(false);
+if (sidebackdrop) sidebackdrop.onclick = () => setSide(false);
+if (sideEl) {
+  let sx = null, sy = null;
+  sideEl.addEventListener('touchstart', e => { const t = e.changedTouches[0]; sx = t.clientX; sy = t.clientY; }, {passive: true});
+  sideEl.addEventListener('touchend', e => { if (sx === null) return; const t = e.changedTouches[0]; const dx = t.clientX - sx, dy = t.clientY - sy; sx = null; if (isNarrow() && dx > 70 && Math.abs(dy) < 60) setSide(false); }, {passive: true});
+}
+function applyNarrowBoard(){
+  const b = document.getElementById('board');
+  if (b && isNarrow() && !b.classList.contains('mini')) { b.classList.add('mini'); const mb = document.getElementById('bmin'); if (mb) mb.textContent = '□'; }
+}
+function onResize(){ refreshBarLabels(); applyNarrowBoard(); map.invalidateSize(); }
+window.addEventListener('resize', onResize);
+window.addEventListener('orientationchange', () => setTimeout(onResize, 150));
+applyNarrowBoard();
+refreshBarLabels();
 
 // ---------- metro flash line-map (top banner) ----------
 const FSP = 78;
@@ -1121,7 +1212,7 @@ function loop(now) {
   lastTs = now;
   if (SIM.playing) {
     SIM.t += dt * SIM.speed;
-    if (SIM.t >= SCHED.end) { SIM.t = SCHED.end; SIM.playing = false; playBtn.textContent = '▶ 播放'; }
+    if (SIM.t >= SCHED.end) { SIM.t = SCHED.end; SIM.playing = false; playBtn.textContent = playLabel(); }
     dirty = true;
   }
   if (dirty) renderSim();
@@ -1249,6 +1340,7 @@ document.getElementById('all').onclick = () => setAll(true);
 document.getElementById('none').onclick = () => setAll(false);
 document.getElementById('ss').onclick = () => { document.querySelectorAll('.chip input').forEach(i => { i.checked = i.dataset.r.startsWith('SS'); i.onchange(); }); };
 const allBounds = () => L.latLngBounds(Object.values(DATA.stops).map(s => pt(s.lat, s.lng)));
+function homeView(){ if (isNarrow()) map.setView([32.06, 118.79], 12); else map.fitBounds(allBounds(), {padding: [30, 30]}); }
 document.getElementById('fit').onclick = () => map.fitBounds(allBounds(), {padding: [30, 30]});
 map.on('baselayerchange', e => {
   MODE = e.layer.options.coordMode;
@@ -1257,11 +1349,11 @@ map.on('baselayerchange', e => {
   dirty = true;
   build();
   applyFilter();
-  map.fitBounds(allBounds(), {padding: [30, 30]});
+  homeView();
 });
 build();
 applyFilter();
-map.fitBounds(allBounds(), {padding: [30, 30]});
+homeView();
 renderBoard();
 </script>
 </body></html>
