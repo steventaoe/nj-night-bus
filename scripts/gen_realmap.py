@@ -593,10 +593,25 @@ setSpeed(7);
 
 // ---------- live stop popup ----------
 let livePopup = null, lastPop = 0;
+// autoPan is off on all popups: Leaflet would otherwise re-pan on every
+// moveend (and content update), yanking the map back while the user drags.
+// Fit the popup into view once, at open time only.
+function fitPopup(p) {
+  const c = p && p._container; if (!c || !c.getBoundingClientRect) return;
+  const mr = map.getContainer().getBoundingClientRect();
+  const pr = c.getBoundingClientRect();
+  let dx = 0, dy = 0;
+  if (pr.left < mr.left + 4) dx = pr.left - mr.left - 4;
+  else if (pr.right > mr.right - 4) dx = pr.right - mr.right + 4;
+  if (pr.top < mr.top + 4) dy = pr.top - mr.top - 4;
+  else if (pr.bottom > mr.bottom - 4) dy = pr.bottom - mr.bottom + 4;
+  if (dx || dy) map.panBy([dx, dy], {animate: false});
+}
 map.on('popupopen', e => {
   const s = e.popup && e.popup._source;
   livePopup = s && s._stopInfo ? {p: e.popup, i: s._stopInfo} : null;
   if (livePopup) { livePopup.p.setContent(livePopup.i.html + nextArrivals(livePopup.i.nm, livePopup.i.st)); lastPop = performance.now(); }
+  fitPopup(e.popup);
 });
 map.on('popupclose', () => { livePopup = null; });
 
@@ -785,10 +800,13 @@ function updateFlash() {
   const el = Math.max(0, Math.min(run, SIM.t - dep));
   let i = 0;
   while (i < n - 1 && st[i + 1] <= el) i++;
+  const arrived = el >= run;
   const skipped = !!(sk && sk[i]);
   const dwelling = i < n - 1 && !skipped && el < st[i] + dw;
   const passing = i < n - 1 && skipped && el < st[i] + dw;
-  const frac = i < n - 1 ? Math.max(0, Math.min(1, (el - st[i]) / (st[i + 1] - st[i]))) : 1;
+  // frac 0 at the terminal: i is already the last index, adding 1 would
+  // push the bus a full stop-spacing past the end of the track.
+  const frac = i < n - 1 ? Math.max(0, Math.min(1, (el - st[i]) / (st[i + 1] - st[i]))) : 0;
   const pos = 30 + (i + (dwelling ? 0 : frac)) * FSP;
   let j = i + 1;
   while (j < n - 1 && sk && sk[j]) j++;
@@ -811,7 +829,7 @@ function updateFlash() {
   for (let jj = 0; jj < n; jj++) {
     const dot = document.getElementById('fd' + jj);
     const isSk = !!(sk && sk[jj]);
-    dot.className = 'fdot' + (isSk ? ' skip' : '') + (jj < i ? ' done' : jj === i ? (dwelling ? ' done cur' : ' cur') : jj === i + 1 ? ' next' : '');
+    dot.className = 'fdot' + (isSk ? ' skip' : '') + (jj < i ? ' done' : jj === i ? (dwelling || arrived ? ' done cur' : ' cur') : jj === i + 1 ? ' next' : '');
     dot.style.background = jj <= i && !isSk ? r.color : '#0b1126';
   }
   if (document.getElementById('ffollow').checked) {
@@ -909,7 +927,7 @@ function build() {
       html += '<div class="prow"><b style="color:' + r.color + '">' + r.label + '</b> ' + dirDesc(st, rid, nm) + '</div>';
     }
     m._stopInfo = {nm, st, html};
-    m.bindPopup(() => html + nextArrivals(nm, st));
+    m.bindPopup(() => html + nextArrivals(nm, st), {autoPan: false});
     m.bindTooltip(nm, {direction: 'top', offset: [0, -4]});
     stopLayer.addLayer(m);
     if (owAny) owLayer.addLayer(L.marker(pt(st.lat, st.lng),
@@ -925,7 +943,7 @@ function build() {
           dashArray: r.id.startsWith('SS') ? '7 5' : null}));
       }
       lg.bindPopup('<div class="ptitle" style="color:' + r.color + '">' + r.label + '</div>' + d.name +
-        '<br>服务时间 ' + d.start + '–' + d.end + '<br>' + d.stops.length + ' 站');
+        '<br>服务时间 ' + d.start + '–' + d.end + '<br>' + d.stops.length + ' 站', {autoPan: false});
       dirLayers[r.id].push(lg);
     });
     if (chipState[r.id] !== false) {

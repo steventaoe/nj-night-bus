@@ -72,7 +72,7 @@ const ctx = vm.createContext({
 });
 vm.runInContext(src + '\n;globalThis.__test={SIM,SCHED,DATA,posAt,renderSim,doJump,fmtT,fmtSpeed,fmtWait,nextArrivals,chipState,pool,playBtn,scrub,loop,ORDER,' +
   'setSpeed,gaugePick,GEARS,gneedle,gfill,speedval,setSpeedPanel,busState,renderBoard,bbody,openFlash,updateFlash,closeFlash,' +
-  'get livePopup(){return livePopup}, set livePopup(v){livePopup=v}, get flash(){return flash}, get gearIdx(){return gearIdx}, depPlan};',
+  'get livePopup(){return livePopup}, set livePopup(v){livePopup=v}, get flash(){return flash}, get gearIdx(){return gearIdx}, depPlan, FSP};',
   ctx, { timeout: 30000 });
 const T = ctx.__test || (ctx.globalThis && ctx.globalThis.__test);
 let pass = 0, fail = 0;
@@ -245,6 +245,17 @@ const curBefore = byId['fcur'].textContent;
 T.SIM.t = 1470 + (v1.stopT[5] - v1.stopT[0]); T.updateFlash();
 ok(byId['fcur'].textContent !== curBefore || byId['fclock'].textContent !== '00:30⁺¹', 'flash advances with sim');
 ok(byId['finner'].innerHTML.includes('fdot') && byId['finner'].innerHTML.includes('fbus'), 'flash strip has dots + bus');
+// terminal: bus must rest exactly on the last dot, never overshoot past it
+const nF = T.flash.d.stops.length, endX = 30 + (nF - 1) * T.FSP;
+T.SIM.t = dep1 + v1.run - 0.01; T.updateFlash();
+const leftBefore = parseFloat(byId['fbus'].style.left);
+T.SIM.t = dep1 + v1.run; T.updateFlash();
+const leftAt = parseFloat(byId['fbus'].style.left);
+T.SIM.t = dep1 + v1.run + 60; T.updateFlash();
+const leftAfter = parseFloat(byId['fbus'].style.left);
+ok(Math.abs(leftAt - endX) < 0.01, 'flash bus rests on terminal dot at arrival');
+ok(leftBefore <= leftAt + 0.01 && leftAfter === leftAt, 'flash bus never overshoots past terminal');
+ok(byId['fstatv'].textContent === '终到收车' && byId['fd' + (nF - 1)].className.includes('done'), 'terminal status + done dot');
 T.closeFlash();
 ok(T.flash === null && byId['flash'].hidden === true, 'flash closes');
 
