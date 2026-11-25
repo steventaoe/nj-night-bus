@@ -77,7 +77,8 @@ vm.runInContext(src + '\n;globalThis.__test={SIM,SCHED,DATA,posAt,renderSim,doJu
   'get livePopup(){return livePopup}, set livePopup(v){livePopup=v}, get flash(){return flash}, get gearIdx(){return gearIdx}, depPlan, FSP,' +
   'placeFlashBus, flashGeom, openHelp, closeHelp, helpSearch, stopScale, paintStops, STOP_R, STOP_W,' +
   'get REAL(){return REAL}, setReal, planFor, buildReal, posReal, REAL_CFG, dirLights, peakW, hashStr, mulberry32,' +
-  'isNarrow, playLabel, speedLabel, modeLabel, fsLabel, fsActive, refreshBarLabels, applyNarrowBoard};',
+  'isNarrow, playLabel, speedLabel, modeLabel, fsLabel, fsActive, refreshBarLabels, applyNarrowBoard,' +
+  'routeW, isHub, todW, ROUTE_W, nodeType, nodeMul, nodeGate, NODE_GATE_PTS};',
   ctx, { timeout: 30000 });
 const T = ctx.__test || (ctx.globalThis && ctx.globalThis.__test);
 let pass = 0, fail = 0;
@@ -408,6 +409,62 @@ ok(typeof byId['sideclose'].onclick === 'function', 'drawer close button wired')
 T.applyNarrowBoard();
 ok(byId['board'].classList.contains('mini'), 'departure board auto-minimised on narrow screen');
 ctx.window.innerWidth = 1400;
+
+// 20. dwell demand recalibration (per-route weight / typed nodes / hour gates / time-of-night / transfer decoupling)
+ok(typeof T.routeW === 'function' && typeof T.isHub === 'function' && typeof T.todW === 'function' && typeof T.nodeType === 'function' && typeof T.nodeGate === 'function', 'dwell demand helpers defined');
+ok(T.routeW('Y16') === 2.0 && T.routeW('Y13') === 2.0, 'railway-hub trunk routes weighted 2.0');
+ok(T.routeW('Y39') < 0.5 && T.routeW('Y38') < 0.5, 'near-empty routes weighted < 0.5');
+ok(T.routeW('Y2') === 1.0 && T.routeW('__none__') === 1.0, 'routes without evidence default to 1.0');
+ok(T.nodeType('南京站·南广场西') === 'rail' && T.nodeType('南京站·南广场东') === 'rail', '南京站·南广场 (station square) classified rail');
+ok(T.nodeType('龙蟠路·南京站东') === null && T.nodeType('龙蟠路·南京站西') === null, '龙蟠路·南京站东/西 (~500m from station, no rail flow) NOT a hub');
+ok(T.nodeType('南京南站') === 'hsr', '南京南站 (高铁) classified hsr');
+ok(T.nodeType('汽车客运站') === 'coach' && T.nodeType('江宁长途汽车站') === 'coach' && T.nodeType('水阁路客运站') === 'coach', 'coach terminals classified coach');
+ok(T.nodeType('南京西站') === null && T.nodeType('南京西站1站台') === null, '南京西站 (停办客运 since 2012-03-24) is NOT a hub');
+ok(T.isHub('南京南站') && T.isHub('南京站·南广场西') && T.isHub('汽车客运站') && !T.isHub('南京西站') && !T.isHub('龙蟠路·南京站东') && !T.isHub('鼓楼医院'), 'isHub covers railway/coach transport hubs only');
+ok(T.nodeType('鼓楼医院') === 'hospital' && T.nodeType('省人民医院') === 'hospital' && T.nodeType('南京市中医院') === 'hospital', '24h-emergency hospitals classified');
+ok(T.nodeType('新街口东') === 'nightlife' && T.nodeType('太平南路·夫子庙') === 'nightlife' && T.nodeType('大行宫东') === 'nightlife', 'nightlife nodes classified');
+ok(T.nodeType('南堡公园') === null && T.nodeType('') === null, 'ordinary stops have no node type');
+ok(T.todW(30) > T.todW(200) && T.todW(200) < T.todW(330), 'demand surges post-metro, troughs ~03:20, rebounds by 05:30');
+ok(T.todW(0) > 1.3 && T.todW(240) < 0.6, 'post-midnight surge exceeds deep-night trough');
+ok(T.nodeGate('hsr', 23 * 60) > T.nodeGate('hsr', 4 * 60) * 1.5, '南京南站 gate collapses during the 00-06 高铁天窗 (' + T.nodeGate('hsr', 23 * 60).toFixed(2) + ' vs ' + T.nodeGate('hsr', 4 * 60).toFixed(2) + ')');
+ok(T.nodeGate('coach', 1 * 60) > T.nodeGate('coach', 3 * 60 + 30) * 1.5, 'coach gate near-zero during the 02-05 停运 window (' + T.nodeGate('coach', 60).toFixed(2) + ' vs ' + T.nodeGate('coach', 210).toFixed(2) + ')');
+ok(T.nodeGate('rail', 23 * 60) > T.nodeGate('rail', 3 * 60) * 1.5, '南京站·南广场 gate collapses in deep night (few stopping services after ~00:30) (' + T.nodeGate('rail', 23 * 60).toFixed(2) + ' vs ' + T.nodeGate('rail', 3 * 60).toFixed(2) + ')');
+ok(T.nodeGate('nightlife', 23 * 60) > T.nodeGate('nightlife', 4 * 60) * 1.5, 'nightlife gate peaks late-evening and clears by deep night (' + T.nodeGate('nightlife', 23 * 60).toFixed(2) + ' vs ' + T.nodeGate('nightlife', 4 * 60).toFixed(2) + ')');
+let agg = { hub: [0, 0], night: [0, 0], hosp: [0, 0], plain: [0, 0] };
+let quickN = 0, totN = 0, sN = 0, sSum = 0, mN = 0, mSum = 0;
+const perRoute = {};
+for (const key of Object.keys(T.SCHED.dirs)) {
+  const v = T.SCHED.dirs[key], rid = key.split('|')[0], di = +key.split('|')[1], wR = T.routeW(rid);
+  const r = T.DATA.routes.find(x => x.id === rid), names = r ? r.dirs[di].stops : [];
+  for (let k = 0; k < v.deps.length; k++) {
+    const p = T.buildReal(v, key, k);
+    for (let i = 0; i < p.dwr.length; i++) {
+      if (p.sk && p.sk[i]) continue;
+      const d = p.dwr[i], nm = names[i], nt = T.nodeType(nm);
+      const nR = (nm && T.DATA.stops[nm]) ? Object.keys(T.DATA.stops[nm].routes).length : 1;
+      totN++; if (d <= T.REAL_CFG.quickMax + 1e-9) quickN++;
+      const bk = (nt === 'rail' || nt === 'hsr' || nt === 'coach') ? 'hub' : nt === 'nightlife' ? 'night' : nt === 'hospital' ? 'hosp' : 'plain';
+      agg[bk][0] += d; agg[bk][1]++;
+      const pr = perRoute[rid] || (perRoute[rid] = { s: 0, n: 0 }); pr.s += d; pr.n++;
+      if (nt === null && i > 0 && i < p.dwr.length - 1) {
+        const dn = d / wR;
+        if (nR === 1) { sSum += dn; sN++; } else if (nR < T.REAL_CFG.majorRoutes) { mSum += dn; mN++; }
+      }
+    }
+  }
+}
+const mean = b => b[0] / Math.max(1, b[1]);
+const hubMean = mean(agg.hub), nightMean = mean(agg.night), hospMean = mean(agg.hosp), plainMean = mean(agg.plain);
+const netMean = (agg.hub[0] + agg.night[0] + agg.hosp[0] + agg.plain[0]) / Math.max(1, totN);
+ok(agg.hub[1] > 0 && hubMean > plainMean * 1.15, 'transport hubs dwell longer than ordinary stops (' + hubMean.toFixed(3) + ' vs ' + plainMean.toFixed(3) + ' min)');
+ok(agg.night[1] > 0 && nightMean > plainMean, 'nightlife nodes dwell longer than ordinary stops (' + nightMean.toFixed(3) + ' vs ' + plainMean.toFixed(3) + ' min)');
+ok(agg.hosp[1] > 0 && hospMean > plainMean, '24h-hospital nodes dwell longer than ordinary stops (' + hospMean.toFixed(3) + ' vs ' + plainMean.toFixed(3) + ' min)');
+ok(netMean < T.SCHED.model.dwell, 'network mean dwell recalibrated below the 0.6-min nominal (' + netMean.toFixed(3) + ')');
+ok(quickN / totN > 0.30, 'a healthy share of night stops are short door-cycles (' + (100 * quickN / totN).toFixed(0) + '%)');
+const y16 = perRoute['Y16'], y39 = perRoute['Y39'];
+ok(y16 && y39 && (y16.s / y16.n) > (y39.s / y39.n) * 1.3, 'busy Y16 dwells markedly longer than empty Y39');
+const sMean = sSum / Math.max(1, sN), mMean = mSum / Math.max(1, mN);
+ok(sN > 0 && mN > 0 && mMean < sMean * 1.25, 'ordinary 2-3-route transfer stops are NOT inflated vs single-route stops, weight-normalised (' + mMean.toFixed(3) + ' vs ' + sMean.toFixed(3) + ')');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -486,19 +486,102 @@ function posAt(v, el, plan) {
 // five stochastic effects on top, seeded per departure so scrubbing back and
 // forth always shows the same bus in the same place:
 //   ① signals    inferred junctions: green / flashing-yellow pass, or red wait
-//   ② dwell      quick "door-cycle only" stops vs normal vs long (scenic/interchange)
+//   ② dwell      per-stop demand = route ridership × time-of-night × node type.
+//                Low demand → quick "door-cycle only" stop (Nanjing Y-lines are
+//                all-stops, so an empty stop still opens doors ~12-25 s); high
+//                demand → long stop. Railway/coach hubs dwell longest; ordinary
+//                2-3-route transfer stops get NO bonus, because night Y↔Y transfer
+//                demand is ~zero at 30-60 min headways (nobody waits half an hour).
 //   ③ depDelay   0..few minutes late departure (never early)
 //   ④ congestion peak-hour speed loss for departures crossing ~06:00 / 17-19h
 //   ⑤ accel      extra time + eased start after each stop / red light
 // The warp RT = [[realMin, theoreticalTau], ...] maps elapsed real minutes (from
 // the scheduled departure) to the theoretical timeline that posAt interpolates.
 const REAL_CFG = {
-  depMax: 3.0, pQuick: 0.42, pBusy: 0.12,
-  quickMin: 0.15, quickMax: 0.40, busyMul: [1.6, 3.8], normMul: [0.8, 1.5],
+  depMax: 3.0,
+  quickMin: 0.20, quickMax: 0.42, busyMul: [1.7, 3.4], normMul: [0.55, 1.4],
   lightSpacing: 0.55, turnLightDeg: 18, pRed: 0.34, redMin: 0.3, redMax: 1.6,
   pYellow: 0.12, yellowWait: 0.12, accel: 0.06, accelLong: 0.05,
-  congMax: 0.75, fastGapKm: 2.5
+  congMax: 0.75, fastGapKm: 2.5,
+  // dwell demand model (2026-11 recalibration; evidence in README 停站时间模型)
+  pQuickBase: 0.42, pQuickSlope: 0.45, pBusyBase: 0.12, pBusyExp: 1.3, busyCap: 0.72,
+  hubMul: 1.9, hubBusyMul: 1.35, majorMul: 1.35, majorRoutes: 4, nightMul: 1.55, hospMul: 1.3,
+  originMul: 1.2, endMul: 0.8, loadMin: 0.15, loadMax: 3.0,
+  todPts: [[0,1.40],[60,1.35],[90,1.10],[150,0.60],[240,0.45],[300,0.90],[360,1.20],[460,1.00],[720,1.00],[1080,1.00],[1260,1.10],[1380,1.30],[1440,1.40]]
 };
+// Per-route ridership weight (1.0 = baseline). Tiers distilled from the few hard
+// counts (Y16 peak ~28-30 pax; SS1 双节 95% 上座率), journalist ride-alongs (Y13
+// 最热闹 / 年前趟趟爆满; Y1 crowded till ~01:30), timetable frequency as a demand
+// proxy (Y26/Y28/Y38/Y39 only 3-4 runs a night), and the 2024-25 线网整合 that
+// culled the emptiest lines. Routes with no evidence default to 1.0.
+const ROUTE_W = {
+  Y16: 2.0, Y13: 2.0, SS2: 1.7,
+  Y1: 1.6, Y8: 1.6, Y3: 1.6, SS1: 1.5, Y34: 1.5,
+  Y23: 1.3, Y21: 1.3, Y37: 1.3, Y28: 1.3, Y32: 1.3, Y30: 1.2, Y36: 1.2, Y27: 1.15,
+  Y4: 0.55, Y7: 0.55, Y11: 0.55, Y22: 0.55, Y29: 0.5, Y31: 0.5, Y33: 0.5, Y35: 0.5,
+  Y38: 0.45, Y39: 0.45, Y40: 0.45, Y41: 0.45,
+  LSY1: 0.6, LSY2: 0.6, LSY5: 0.6, GC801: 0.6, GC802: 0.55, GC803: 0.5
+};
+function routeW(rid) { const w = ROUTE_W[rid]; return w == null ? 1.0 : w; }
+// Node classification for dwell demand, each gated by whether it actually discharges
+// passengers at that hour (evidence in README 停站时间模型):
+//   rail    南京站·南广场 —— 普速 K/T/Z 到发，但深夜(约 00:30-05:00)极少车次停靠、
+//           客流大幅回落，故按时段开闸；龙蟠路·南京站东/西 距站约 500m、无车站
+//           客流，不计入枢纽（仅作普通站）
+//   hsr     南京南站 —— 高铁 00:00-06:00 天窗；客流集中在末班地铁/末班车 wave
+//           (~22:00-00:30)，深夜近静，05:30 后随首班车回升
+//   coach   客运站/长途汽车站 —— 长途客运凌晨 2-5 时停运，故该窗口近静
+//   hospital 医院 —— 24h 急诊/陪护，幅度不大且基本平稳，交接班略升
+//   nightlife 新街口/夫子庙/大行宫(1912)/老门东/奥体 —— 22:00-01:00 高峰，01:00 后清场
+// 南京西站 2012-03-24 起停办客运（今为客车整备所），不再算枢纽。
+function nodeType(nm) {
+  if (!nm) return null;
+  if (/南京南站/.test(nm)) return 'hsr';
+  if (/南京站·南广场/.test(nm)) return 'rail';
+  if (/客运站|长途汽车站|长途车站|长途东站/.test(nm)) return 'coach';
+  if (/医院/.test(nm)) return 'hospital';
+  if (/新街口|夫子庙|大行宫|老门东|奥体|湖南路|狮子桥|上海路|1912/.test(nm)) return 'nightlife';
+  return null;
+}
+// Transport hubs (railway + coach) — helper for tests and the busy-branch logic.
+function isHub(nm) { const t = nodeType(nm); return t === 'rail' || t === 'hsr' || t === 'coach'; }
+function nodeMul(t) {
+  if (t === 'rail' || t === 'hsr' || t === 'coach') return REAL_CFG.hubMul;
+  if (t === 'nightlife') return REAL_CFG.nightMul;
+  if (t === 'hospital') return REAL_CFG.hospMul;
+  return 1;
+}
+// Hour gates: multiplier in [0,1] on the node bonus, by minute-of-day (wrapping).
+const NODE_GATE_PTS = {
+  rail:     [[0,0.55],[30,0.45],[150,0.30],[240,0.30],[330,0.55],[420,1.00],[1080,1.00],[1320,1.00],[1380,0.90],[1440,0.55]],
+  hsr:      [[0,1.00],[30,1.00],[90,0.50],[330,0.22],[360,0.50],[1320,0.90],[1380,1.00],[1440,1.00]],
+  coach:    [[0,0.90],[120,0.90],[150,0.18],[300,0.18],[330,0.70],[1320,0.90],[1440,0.90]],
+  nightlife:[[0,0.90],[60,0.80],[120,0.30],[300,0.15],[1080,0.20],[1260,0.60],[1350,1.00],[1440,0.90]],
+  hospital: [[0,0.90],[360,0.90],[420,1.00],[480,1.00],[1320,0.95],[1380,1.00],[1440,0.90]]
+};
+function nodeGate(t, m) {
+  const P = NODE_GATE_PTS[t]; if (!P) return 1;
+  const x = ((m % 1440) + 1440) % 1440;
+  if (x <= P[0][0]) return P[0][1];
+  for (let i = 1; i < P.length; i++) if (x <= P[i][0]) {
+    const a = P[i - 1], b = P[i], u = (x - a[0]) / ((b[0] - a[0]) || 1);
+    return a[1] + (b[1] - a[1]) * u;
+  }
+  return P[P.length - 1][1];
+}
+// Time-of-night demand multiplier. Ridership does NOT decay monotonically through
+// the night: it surges right after the metro stops (~00:00-01:30), collapses to a
+// trough ~02:30-04:00, then climbs again into the 05:00-06:00 early-shift /
+// train-arrival peak (Y16 is famously full at 05:00).
+function todW(m) {
+  const t = ((m % 1440) + 1440) % 1440, P = REAL_CFG.todPts;
+  if (t <= P[0][0]) return P[0][1];
+  for (let i = 1; i < P.length; i++) if (t <= P[i][0]) {
+    const a = P[i - 1], b = P[i], u = (t - a[0]) / ((b[0] - a[0]) || 1);
+    return a[1] + (b[1] - a[1]) * u;
+  }
+  return P[P.length - 1][1];
+}
 let REAL = false;
 const realCache = new Map(), lightCache = new Map(), fastCache = new Map();
 function hashStr(s) { let h = 2166136261 >>> 0; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
@@ -544,16 +627,23 @@ function buildReal(v, key, k) {
     const pass = depBase + v.stopT[i]; if (pass >= w.from && pass < w.to) sk[i] = true;
   }
   const dwr = new Array(n);
+  const wRoute = routeW(key.split('|')[0]);
   for (let i = 0; i < n; i++) {
     if (sk[i]) { dwr[i] = 0; continue; }
     const nm = names[i];
-    const busy = nm && DATA.stops[nm] ? Object.keys(DATA.stops[nm].routes).length : 1;
-    const inter = busy >= 2, edge = (i === 0 || i === n - 1);
-    const pBusy = REAL_CFG.pBusy + (inter ? 0.12 : 0) + (edge ? 0.10 : 0);
-    const pQuick = Math.max(0.05, REAL_CFG.pQuick - (inter ? 0.18 : 0) - (edge ? 0.10 : 0));
+    const nRoutes = nm && DATA.stops[nm] ? Object.keys(DATA.stops[nm].routes).length : 1;
+    const nt = nodeType(nm), major = !nt && nRoutes >= REAL_CFG.majorRoutes;
+    const clk = depBase + v.stopT[i];
+    let load = wRoute * todW(clk);
+    if (nt) load *= nodeMul(nt) * nodeGate(nt, clk); else if (major) load *= REAL_CFG.majorMul;
+    if (i === 0) load *= REAL_CFG.originMul; else if (i === n - 1) load *= REAL_CFG.endMul;
+    load = Math.max(REAL_CFG.loadMin, Math.min(REAL_CFG.loadMax, load));
+    const pBusy = Math.min(REAL_CFG.busyCap, REAL_CFG.pBusyBase * Math.pow(load, REAL_CFG.pBusyExp));
+    const pQuick = Math.max(0.05, Math.min(0.92, REAL_CFG.pQuickBase + REAL_CFG.pQuickSlope * (1 - load)));
+    const busyNode = nt === 'rail' || nt === 'hsr' || nt === 'coach' || nt === 'nightlife';
     const u = rng();
     if (u < pQuick) dwr[i] = REAL_CFG.quickMin + rng() * (REAL_CFG.quickMax - REAL_CFG.quickMin);
-    else if (u < pQuick + pBusy) dwr[i] = dw * (REAL_CFG.busyMul[0] + rng() * (REAL_CFG.busyMul[1] - REAL_CFG.busyMul[0]));
+    else if (u < pQuick + pBusy) dwr[i] = dw * (REAL_CFG.busyMul[0] + rng() * (REAL_CFG.busyMul[1] - REAL_CFG.busyMul[0])) * (busyNode ? REAL_CFG.hubBusyMul : 1);
     else dwr[i] = dw * (REAL_CFG.normMul[0] + rng() * (REAL_CFG.normMul[1] - REAL_CFG.normMul[0]));
   }
   const depDelay = +(rng() * rng() * REAL_CFG.depMax).toFixed(2);
