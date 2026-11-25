@@ -26,8 +26,6 @@
  .ends{color:#c6d2f2}
  .tm{grid-column:3/5;color:#7f8db8;font-size:11px}
  .ow{grid-column:3/5;color:#f0a35e;font-size:11px}
- .note{font-size:11.5px;color:#8fa0c9;line-height:1.8;margin-top:12px;border-top:1px solid #1c2547;padding-top:10px}
- .owdiamond div{width:9px;height:9px;background:#0d1226;border:2px solid #fbbf24;transform:rotate(45deg)}
  .leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#141c3d;color:#e8ecf8}
  .leaflet-popup-content{font-size:12.5px;line-height:1.7}
  .leaflet-container{background:#0d1226}
@@ -267,13 +265,13 @@
   <div class="hbody" id="helpbody">
    <div class="hsec">
     <h3>读图基础</h3>
-    <p>白色圆点 = 站点，多线换乘站带黑边；<span style="color:#fbbf24">琥珀菱形</span> = 单向站（仅某一方向停靠，弹窗注明方向）；虚线 = 地铁末班守时公交。</p>
-    <p>点击站点弹出详情，查看各线路在此的停靠方向与下一班到站；点击侧栏线路名可缩放到该线走向。左上角图层控件可切换高德（GCJ02，国内快）/ OSM德国 / OSM标准（WGS84）底图。</p>
+    <p>全图站点圆点大小统一，并随地图放大一并增大；白色圆点 = 普通站点（多线换乘站带深色边），<span style="color:#fbbf24">琥珀色圆点</span> = 单向站（仅某一方向停靠，弹窗注明方向）；虚线 = 地铁末班守时公交。</p>
+    <p>点击站点弹出详情，查看各线路在此的停靠方向与下一班到站；点击侧栏线路名可缩放到该线走向。左上角图层控件可切换高德（GCJ02，国内快）/ OSM德国 / OSM标准（WGS84）底图。放大地图时站点圆点会随之增大，便于看清。</p>
    </div>
    <div class="hsec">
     <h3>线路筛选与显示</h3>
     <p>侧栏顶部按钮：<b>全选</b> / <b>全不选</b> / <b>仅守时公交</b> / <b>全图范围</b>（缩放到全网）。每条线路前的复选框控制是否绘制，点击线路色块或名称缩放到该线。</p>
-    <p>显示开关：<b>显示对向走向</b>（同时画出反方向）、<b>单向站标记</b>（琥珀菱形）、<b>站点</b>（圆点）、<b>底图压暗</b>（夜间滤镜，突出线路）。</p>
+    <p>显示开关：<b>显示对向走向</b>（同时画出反方向）、<b>单向站标记</b>（单向站圆点填琥珀色）、<b>站点</b>（圆点）、<b>底图压暗</b>（夜间滤镜，突出线路）。</p>
    </div>
    <div class="hsec">
     <h3>运行模拟播放</h3>
@@ -373,8 +371,13 @@ map.addControl(new (L.Control.extend({onAdd() { return helpBtn; }}))({position: 
 let MODE = 'gcj';
 const pt = (lat, lng) => MODE === 'gcj' ? GCJ(lat, lng) : [lat, lng];
 const routeLayers = {}, dirLayers = {};
-let stopLayer = L.layerGroup(), owLayer = L.layerGroup();
-const renderer = L.canvas({padding: 0.4});
+let stopLayer = L.layerGroup();
+// Stops live in a higher pane than routes so re-adding lines (全不选→全选)
+// can never paint over the stop dots — canvas draw order alone is add-order dependent.
+map.createPane('routesPane'); map.getPane('routesPane').style.zIndex = 400;
+map.createPane('stopsPane'); map.getPane('stopsPane').style.zIndex = 450;
+const renderer = L.canvas({pane: 'routesPane', padding: 0.4});
+const stopRenderer = L.canvas({pane: 'stopsPane', padding: 0.4});
 const chipState = {};
 const ORDER = {}; DATA.routes.forEach((r, i) => ORDER[r.id] = i);
 
@@ -947,17 +950,31 @@ function dirDesc(st, rid, nm) {
     dis.map(i => r.id === 'Y33' ? (i === 0 ? '内圈' : '外圈') : '往' + r.dirs[i].to).join(' / ') + ' 方向';
 }
 
+// Uniform stop-dot sizing: one base radius for every stop (interchange or not),
+// scaled by zoom so dots grow together as you zoom in.
+const STOP_R = 3, STOP_W = 1.5;
+function stopScale(z) { return Math.max(0.8, Math.min(4, Math.pow(1.2, z - 11))); }
+// One-way stops are flagged by an amber fill inside the dot — no overlay glyph.
+function paintStops() {
+  const ow = document.getElementById('owmark').checked;
+  stopLayer.eachLayer(m => {
+    const amber = ow && m._ow;
+    m.setStyle({fillColor: amber ? '#fbbf24' : '#f5f7ff', color: amber ? '#0d1226' : m._col});
+  });
+}
 function build() {
   Object.values(routeLayers).forEach(g => map.removeLayer(g));
-  map.removeLayer(stopLayer); map.removeLayer(owLayer);
-  stopLayer = L.layerGroup(); owLayer = L.layerGroup();
+  map.removeLayer(stopLayer);
+  stopLayer = L.layerGroup();
   for (const [nm, st] of Object.entries(DATA.stops)) {
     const rids = Object.keys(st.routes);
     const inter = rids.length >= 2;
     const owAny = rids.some(rid => DATA.routes.find(x => x.id === rid).oneway.includes(nm));
     const col = inter ? '#0d1226' : DATA.routes.find(x => x.id === rids[0]).color;
-    const m = L.circleMarker(pt(st.lat, st.lng), {renderer, radius: inter ? 5 : 3.5,
-      fillColor: '#f5f7ff', fillOpacity: 1, color: col, weight: inter ? 2 : 1.8});
+    const owAmber = owAny && document.getElementById('owmark').checked;
+    const m = L.circleMarker(pt(st.lat, st.lng), {renderer: stopRenderer, radius: STOP_R * stopScale(map.getZoom()),
+      fillColor: owAmber ? '#fbbf24' : '#f5f7ff', fillOpacity: 1, color: owAmber ? '#0d1226' : col, weight: STOP_W});
+    m._inter = inter; m._ow = owAny; m._col = col;
     let html = '<div class="ptitle">' + nm + (owAny ? ' <span class="owtag">◆单向站</span>' : '') +
       ((SCHED.skipStops || []).some(x => x.name === nm) ? ' <span class="skiptag">时段飞站</span>' : '') + '</div>';
     for (const rid of rids) {
@@ -968,8 +985,6 @@ function build() {
     m.bindPopup(() => html + nextArrivals(nm, st), {autoPan: false});
     m.bindTooltip(nm, {direction: 'top', offset: [0, -4]});
     stopLayer.addLayer(m);
-    if (owAny) owLayer.addLayer(L.marker(pt(st.lat, st.lng),
-      {icon: L.divIcon({className: 'owdiamond', html: '<div></div>', iconSize: [13, 13], iconAnchor: [6.5, 6.5]}), interactive: false}));
   }
   for (const r of DATA.routes) {
     const g = L.layerGroup();
@@ -990,7 +1005,6 @@ function build() {
     }
   }
   if (document.getElementById('stopmark').checked) stopLayer.addTo(map);
-  if (document.getElementById('owmark').checked) owLayer.addTo(map);
 }
 const bothdir = () => document.getElementById('bothdir').checked;
 
@@ -1033,8 +1047,12 @@ document.getElementById('bothdir').onchange = () => {
     });
   }
 };
-document.getElementById('owmark').onchange = e => e.target.checked ? owLayer.addTo(map) : map.removeLayer(owLayer);
+document.getElementById('owmark').onchange = paintStops;
 document.getElementById('stopmark').onchange = e => e.target.checked ? stopLayer.addTo(map) : map.removeLayer(stopLayer);
+map.on('zoomend', () => {
+  const r = STOP_R * stopScale(map.getZoom());
+  stopLayer.eachLayer(m => { if (m.setRadius) m.setRadius(r); });
+});
 const darkfilter = document.getElementById('darkfilter');
 const applyFilter = () => document.getElementById('map').classList.toggle('darktiles', darkfilter.checked && MODE === 'gcj');
 darkfilter.onchange = applyFilter;

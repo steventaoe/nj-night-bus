@@ -73,7 +73,7 @@ const ctx = vm.createContext({
 vm.runInContext(src + '\n;globalThis.__test={SIM,SCHED,DATA,posAt,renderSim,doJump,fmtT,fmtSpeed,fmtWait,nextArrivals,chipState,pool,playBtn,scrub,loop,ORDER,' +
   'setSpeed,gaugePick,GEARS,gneedle,gfill,speedval,setSpeedPanel,busState,renderBoard,bbody,openFlash,updateFlash,closeFlash,' +
   'get livePopup(){return livePopup}, set livePopup(v){livePopup=v}, get flash(){return flash}, get gearIdx(){return gearIdx}, depPlan, FSP,' +
-  'placeFlashBus, flashGeom, openHelp, closeHelp, helpSearch};',
+  'placeFlashBus, flashGeom, openHelp, closeHelp, helpSearch, stopScale, paintStops, STOP_R, STOP_W};',
   ctx, { timeout: 30000 });
 const T = ctx.__test || (ctx.globalThis && ctx.globalThis.__test);
 let pass = 0, fail = 0;
@@ -327,6 +327,14 @@ ok(byId['help'].hidden === false, 'help opens');
 T.closeHelp();
 ok(byId['help'].hidden === true, 'help closes');
 ok(typeof T.helpSearch === 'function', 'helpSearch defined');
+
+// 17. uniform stop dots + zoom scaling + amber one-way fill
+ok(T.STOP_R === 3 && T.STOP_W === 1.5, 'uniform stop radius/weight constants');
+ok(T.stopScale(11) === 1, 'stopScale(11) = 1 (overview)');
+ok(T.stopScale(16) > T.stopScale(11), 'dots grow when zoomed in');
+ok(T.stopScale(22) <= 4, 'stopScale capped at 4');
+ok(T.stopScale(8) >= 0.8, 'stopScale floor 0.8');
+ok(typeof T.paintStops === 'function', 'paintStops defined (amber one-way fill)');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
