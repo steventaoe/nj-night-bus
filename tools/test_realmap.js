@@ -36,16 +36,21 @@ function makeEl(id) {
   return el;
 }
 const byId = {}, created = [];
+const presetBtns = ['concert', 'sports', 'qingao', 'festival', 'lantern', 'laomendong'].map(p => { const e = makeEl('preset>' + p); e.dataset.preset = p; return e; });
 const documentMock = {
   body: makeEl('body'),
   addEventListener() {},
   getElementById(id) { return byId[id] || (byId[id] = makeEl(id)); },
   createElement(tag) { const el = makeEl('<' + tag + '#' + created.length + '>'); created.push(el); return el; },
+  querySelector(sel) { return byId['q>' + sel] || (byId['q>' + sel] = makeEl('q>' + sel)); },
   querySelectorAll(sel) {
     if (sel === '.chip input') return created.filter(e => e.className === 'chip').map(d => d.querySelector('input'));
+    if (sel === '.gpresets button') return presetBtns;
     return [];
   },
 };
+const lsStore = {};
+const localStorageMock = { getItem(k) { return k in lsStore ? lsStore[k] : null; }, setItem(k, v) { lsStore[k] = String(v); }, removeItem(k) { delete lsStore[k]; } };
 function autoMock(name) {
   const store = {};
   const f = function () { return proxy; };
@@ -70,6 +75,7 @@ const ctx = vm.createContext({
   requestAnimationFrame: cb => { rafCb = cb; },
   setTimeout: () => 0,
   clearTimeout: () => {},
+  localStorage: localStorageMock,
   console,
 });
 vm.runInContext(src + '\n;globalThis.__test={SIM,SCHED,DATA,posAt,renderSim,doJump,fmtT,fmtSpeed,fmtWait,nextArrivals,chipState,pool,playBtn,scrub,loop,ORDER,' +
@@ -80,7 +86,13 @@ vm.runInContext(src + '\n;globalThis.__test={SIM,SCHED,DATA,posAt,renderSim,doJu
   'isNarrow, playLabel, speedLabel, modeLabel, fsLabel, fsActive, refreshBarLabels, applyNarrowBoard,' +
   'routeW, isHub, todW, ROUTE_W, nodeType, nodeMul, nodeGate, NODE_GATE_PTS,' +
   'metroAdj, metroW, dayMul, dayClass, DAY_MUL, DAY_CLASS, METRO_STATIONS, METRO_HOURS, setFlowModel, flowLoad,' +
-  'setDayType, dayLabel, daybtn, modebtn, get DAYTYPE(){return DAYTYPE}, set DAYTYPE(v){DAYTYPE=v}};',
+  'setDayType, dayLabel, daybtn, modebtn, get DAYTYPE(){return DAYTYPE}, set DAYTYPE(v){DAYTYPE=v},' +
+  'capacity, crowdTier, crowdColor, demandLoad, alightProb, paxPlan, occAt, PAX_BOARD, CAP_DEFAULT, CAP_OVERRIDE,' +
+  'eventBoard, curveAt, stopIdx, extraPassTimes, setODModel, odFlow, godSig,' +
+  'get EVENTS(){return EVENTS}, get EXTRA_DEPS(){return EXTRA_DEPS}, get EVENT_VER(){return EVENT_VER},' +
+  'ACH, unlock, get achGot(){return achGot}, openAch, closeAch, renderAch, showToast, achTick,' +
+  'get GOD(){return GOD}, setGod, godbtn, PRESETS, createEvent, addExtra, makeExtraV, autoDispatch, renderEvents,' +
+  'toWgs, distM, parseClock, clockInput, focusGodRoute, fillGodRoutes, fillGodDirs, fillGodStops, groute, gdir, gstop};',
   ctx, { timeout: 30000 });
 const T = ctx.__test || (ctx.globalThis && ctx.globalThis.__test);
 let pass = 0, fail = 0;
@@ -567,6 +579,171 @@ ok(T.DAYTYPE === 'weekday', 'day button cycles holiday → weekday');
 T.setDayType('holiday');
 ok(byId['daybtn'].classList.contains('on'), 'non-weekday day-type highlights the button');
 T.setDayType('weekday'); T.setReal(false);
+
+// 27. rated capacity & crowding tiers
+ok(T.capacity('Y16') === 90 && T.capacity('Y1') === 90, 'trunk lines rated 90');
+ok(T.capacity('SS1') === 150, 'SS1 articulated rated 150');
+ok(T.capacity('LSY1') === 70 && T.capacity('GC801') === 70, 'suburban lines rated 70');
+ok(T.crowdTier(0.2) === '舒适' && T.crowdTier(0.3) === '舒适', '<=30% 舒适');
+ok(T.crowdTier(0.5) === '一般' && T.crowdTier(0.7) === '一般', '30-70% 一般');
+ok(T.crowdTier(0.8) === '拥挤' && T.crowdTier(1.0) === '拥挤', '70-100% 拥挤');
+ok(T.crowdColor(0.2) === '#34d399' && T.crowdColor(0.5) === '#fbbf24' && T.crowdColor(0.9) === '#f87171', 'crowding colors');
+
+// 28. paxPlan: determinism, bounds, conservation, terminal empties
+T.setReal(true); T.setDayType('weekday');
+const pv = T.SCHED.dirs['Y16|0'];
+const pplan = T.planFor(pv, 'Y16|0', 0);
+const pax = T.paxPlan(pv, 'Y16|0', 0, pplan);
+const pn = pv.stopT.length;
+ok(pax.B.length === pn && pax.A.length === pn && pax.occ.length === pn, 'pax arrays match stop count');
+ok(pax.occ.every(o => o >= 0 && o <= pax.cap), 'onboard within [0,cap]');
+ok(pax.B.every(b => Number.isInteger(b) && b >= 0) && pax.A.every(a => Number.isInteger(a) && a >= 0), 'board/alight non-negative integers');
+ok(pax.occ[pn - 1] === 0, 'terminal empties the bus');
+let alightOk = true; for (let i = 1; i < pn; i++) if (pax.A[i] > pax.occ[i - 1]) alightOk = false;
+ok(alightOk, 'alighting never exceeds prior onboard');
+ok(T.paxPlan(pv, 'Y16|0', 0, pplan) === pax, 'paxPlan cached/deterministic');
+// dwell-match: busy-tier stops board more on average than quick-tier stops
+let qSum = 0, qN = 0, bSum = 0, bN = 0;
+for (let i = 0; i < pn; i++) { const d = pplan.dwr[i]; if (pplan.sk[i]) continue;
+  if (d <= T.REAL_CFG.quickMax + 1e-9) { qSum += pax.B[i]; qN++; } else if (d >= T.SCHED.model.dwell * T.REAL_CFG.busyMul[0]) { bSum += pax.B[i]; bN++; } }
+ok(qN === 0 || bN === 0 || (bSum / bN) > (qSum / qN), 'busy stops board more than quick stops (dwell-match)');
+
+// 29. reserved OD interface (hook present, not computed by default)
+ok(T.odFlow('Y16', 0, 0, 0, 1) === null, 'OD null by default');
+let odCalls = 0; T.setODModel((rid, di, k, i, j) => { odCalls++; return 5; });
+ok(T.odFlow('Y16', 0, 0, 0, 1) === 5 && odCalls === 1, 'OD hook returns injected value');
+T.setODModel(null); ok(T.odFlow('Y16', 0, 0, 0, 1) === null, 'OD hook resets to null');
+
+// 30. god event: spatial spread, transfer spillover, window, 加车 relief
+// Use a multi-route interchange hub so transfer spillover is exercised (奥体 itself
+// is served only by Y7, so spillover is verified at a hub instead).
+let hub = null;
+for (const nm in T.DATA.stops) if (Object.keys(T.DATA.stops[nm].routes).length >= 3) { hub = nm; break; }
+ok(!!hub, 'found an interchange hub for spillover test');
+const hs = T.DATA.stops[hub];
+const ev = T.createEvent(hs.lat, hs.lng, { crowd: 6000, tStart: 1350, dur: 120, radius: 2000 }, null);
+ok(T.EVENTS.length === 1, 'event registered');
+ok(Object.keys(ev.stopW).length >= 2, 'crowd spreads to multiple nearby stops');
+let swSum = 0; for (const k in ev.stopW) swSum += ev.stopW[k];
+ok(Math.abs(swSum - 1) < 1e-6, 'spatial weights normalized to 1');
+ok(Object.keys(ev.routeShare[hub]).length >= 2, 'transfer spillover: hub crowd split across its routes');
+let rsSum = 0; for (const r in ev.routeShare[hub]) rsSum += ev.routeShare[hub][r];
+ok(Math.abs(rsSum - 1) < 1e-6, 'per-stop route shares normalized to 1');
+// find an affected (stop,route) that actually has a scheduled departure in the window
+let pair = null;
+for (const nm in ev.sched) for (const rid in ev.sched[nm]) if (ev.sched[nm][rid].length) { pair = { nm, rid, pass: ev.sched[nm][rid][0] }; break; }
+ok(!!pair, 'some affected stop-route has scheduled service in the window');
+ok(T.eventBoard(pair.nm, pair.pass, pair.rid) > 0, 'event boardings positive at a served pass-time');
+ok(T.eventBoard(pair.nm, 1350 + 121, pair.rid) === 0, 'event boardings zero after window');
+ok(T.eventBoard('不存在站', pair.pass, pair.rid) === 0, 'unaffected stop gets no event load');
+const di0 = T.DATA.stops[pair.nm].routes[pair.rid][0];
+const idx0 = T.stopIdx(pair.rid, di0, pair.nm);
+const before = T.eventBoard(pair.nm, pair.pass, pair.rid);
+T.addExtra(pair.rid, di0, pair.pass, idx0, null);
+const after = T.eventBoard(pair.nm, pair.pass, pair.rid);
+ok(after < before, '加车 splits crowd → lower per-departure injected load');
+byId['gclear'].onclick();
+ok(T.EVENTS.length === 0, 'clear empties events');
+T.EXTRA_DEPS.length = 0;
+
+// 31. extra departures: synthetic direction, express skips, flash integration
+const ex = T.addExtra('Y16', 0, 1360, 3, null);
+const fullN = T.DATA.routes.find(x => x.id === 'Y16').dirs[0].stops.length;
+ok(ex && ex.v.names.length === fullN - 3, 'god extra starts at crowded stop (sliced names)');
+ok(ex.v.stopT[0] === 0, 'extra departure time rebased to 0 at start stop');
+const exPlan = T.planFor(ex.v, ex.key, 0);
+ok(exPlan && exPlan.real === true, 'extra departure uses realistic plan');
+const exPax = T.paxPlan(ex.v, ex.key, 0, exPlan);
+ok(exPax.occ.length === ex.v.stopT.length, 'extra pax matches sliced stops');
+T.openFlash(ex.key);
+ok(T.flash && T.flash.extra === true && T.flash.d.stops.length === ex.v.names.length, 'flash opens for extra departure');
+T.closeFlash();
+const ex2 = T.addExtra('Y16', 0, 1360, 0, 5);
+ok(ex2.v.skip.length === 5, 'realistic auto extra expresses from origin');
+const ex2Plan = T.planFor(ex2.v, ex2.key, 0);
+ok(ex2Plan.sk.slice(0, 5).every(Boolean), 'express plan skips first 5 stops (飞站)');
+T.EXTRA_DEPS.length = 0;
+
+// 31b. end-to-end: a large event drives onboard to 100%; 加车 relieves actual onboard
+T.setReal(true); T.setDayType('weekday'); T.SIM.t = 1300;
+const hs2 = T.DATA.stops[hub];
+T.createEvent(hs2.lat, hs2.lng, { crowd: 6000, tStart: 1350, dur: 120, radius: 2000 }, null);
+function peakOnboard(rid) { const v = T.SCHED.dirs[rid + '|0']; let mx = 0;
+  for (let k = 0; k < v.deps.length; k++) { const pl = T.planFor(v, rid + '|0', k); const px = T.paxPlan(v, rid + '|0', k, pl); for (const o of px.occ) if (o > mx) mx = o; } return mx; }
+let evRid = null;
+for (const rid in hs2.routes) { const v = T.SCHED.dirs[rid + '|0']; if (!v) continue; const idx = T.stopIdx(rid, 0, hub); if (idx < 0) continue;
+  for (let k = 0; k < v.deps.length; k++) { const pass = v.deps[k] + v.stopT[idx]; if (pass >= 1350 && pass <= 1470) { evRid = rid; break; } } if (evRid) break; }
+ok(!!evRid, 'a hub route has service in the event window');
+const capR = T.capacity(evRid);
+function peakLoc(rid) { const v = T.SCHED.dirs[rid + '|0']; let bm = 0, bk = 0, bi = 0;
+  for (let k = 0; k < v.deps.length; k++) { const pl = T.planFor(v, rid + '|0', k); const px = T.paxPlan(v, rid + '|0', k, pl);
+    px.occ.forEach((o, i) => { if (o > bm) { bm = o; bk = k; bi = i; } }); } return { bm, bk, bi }; }
+const locBefore = peakLoc(evRid);
+ok(locBefore.bm >= capR, 'large event drives onboard to 100% (挤爆啦 reachable), got ' + locBefore.bm + '/' + capR);
+// add extras from the origin (serving every stop) to relieve the crowded stop
+for (let a = 0; a < 6; a++) T.addExtra(evRid, 0, 1355 + a * 8, 0, null);
+const vAfter = T.SCHED.dirs[evRid + '|0'];
+const pxAfter = T.paxPlan(vAfter, evRid + '|0', locBefore.bk, T.planFor(vAfter, evRid + '|0', locBefore.bk));
+ok(pxAfter.occ[locBefore.bi] < locBefore.bm, '加车 relieves the previously-crowded stop, ' + locBefore.bm + ' → ' + pxAfter.occ[locBefore.bi]);
+byId['gclear'].onclick(); T.EXTRA_DEPS.length = 0;
+
+// 32. achievements: unlock, idempotence, persistence, hidden page
+ok(!!T.achGot.welcome, 'welcome unlocked on load');
+ok(T.ACH.length >= 10, '>=10 achievements defined');
+T.unlock('full'); ok(!!T.achGot.full, 'full (挤爆啦) unlocks');
+const achN = Object.keys(T.achGot).length; T.unlock('full');
+ok(Object.keys(T.achGot).length === achN, 'unlock is idempotent');
+ok((localStorageMock.getItem('njbus_ach_v1') || '').includes('full'), 'achievements persisted to localStorage');
+T.openAch(); ok(byId['achpage'].hidden === false, 'achievement page opens');
+ok(byId['achbody'].innerHTML.includes('挤爆啦'), 'achievement page renders cards');
+T.closeAch(); ok(byId['achpage'].hidden === true, 'achievement page closes');
+
+// 33. god-mode gating & preset placement
+T.setReal(false); ok(byId['godbtn'].disabled === true, 'godbtn disabled in theoretical mode');
+T.setReal(true); ok(byId['godbtn'].disabled === false, 'godbtn enabled in realistic mode');
+byId['godbtn'].onclick(); ok(T.GOD === true && byId['godpanel'].hidden === false, 'godbtn opens god panel');
+ok(!!T.achGot.godmode, 'godmode achievement on first open');
+presetBtns[0].onclick();
+ok(!!T.achGot.concert, 'concert preset unlocks 比歌声更快');
+ok(T.EVENTS.length >= 1, 'concert preset injects an event');
+byId['gclear'].onclick(); T.EXTRA_DEPS.length = 0;
+byId['godbtn'].onclick(); ok(T.GOD === false, 'godbtn toggles god off');
+T.setReal(false); ok(T.GOD === false, 'leaving realistic mode forces god off');
+
+// 34. calibration probe: peak onboard per route (plain weekday realistic, no events)
+T.setReal(true); T.setDayType('weekday');
+const probeRoutes = ['Y16', 'Y13', 'Y1', 'Y8', 'Y3', 'SS1', 'Y4', 'Y29', 'LSY1', 'GC801'];
+const peaks = {};
+for (const rid of probeRoutes) {
+  const v = T.SCHED.dirs[rid + '|0']; if (!v) continue;
+  let mx = 0;
+  for (let k = 0; k < v.deps.length; k++) { const pl = T.planFor(v, rid + '|0', k); const px = T.paxPlan(v, rid + '|0', k, pl);
+    for (const o of px.occ) if (o > mx) mx = o; }
+  peaks[rid] = mx;
+  console.log('PEAK', rid, mx, '/', T.capacity(rid), '=', Math.round(mx / T.capacity(rid) * 100) + '%');
+}
+ok(peaks.Y16 >= 8 && peaks.Y16 <= 22, 'Y16 peak onboard in plausible night trunk range (8-22), got ' + peaks.Y16);
+ok(peaks.Y13 <= 18, 'Y13 peak onboard modest (<=18), got ' + peaks.Y13);
+ok(peaks.Y4 <= 10 && peaks.Y29 <= 10, 'sparse lines peak low (<=10)');
+ok(Object.values(peaks).every(p => p < 25), 'plain night service stays sparse (peak <25 onboard, ~<28%); only events fill buses');
+T.setReal(false); T.setDayType('weekday');
+
+// 35. enriched presets + god-mode auto-relief form focus + quick departure
+ok(Object.keys(T.PRESETS).length >= 6, '>=6 event presets (concert/sports/qingao/festival/lantern/laomendong)');
+ok(T.PRESETS.lantern && T.PRESETS.lantern.lat != null, '秦淮灯会 preset carries an explicit 白鹭洲 venue center');
+ok(T.PRESETS.festival.label.indexOf('咪豆') >= 0, 'festival preset labelled 咪豆音乐节');
+T.setReal(true); byId['godbtn'].onclick();
+ok(T.clockInput(1450) === '00:10' && T.clockInput(1350) === '22:30', 'clockInput formats HH:MM without day suffix');
+ok(byId['gdeptime'].value === T.clockInput(T.SIM.t), 'opening god panel defaults departure to current sim time (<= now)');
+// quick +10 button configures a delayed departure relative to now
+byId['gdeptime'].value = T.clockInput(T.SIM.t + 10);
+ok(T.parseClock(byId['gdeptime'].value) >= T.SIM.t, '+10分 quick button yields a future (delayed) departure');
+// focusGodRoute jumps the manual form to the affected route/direction/stop and sets dep<=now
+const fr = T.DATA.routes[0].id;
+T.focusGodRoute(fr, 0, 2, T.SIM.t);
+ok(T.groute.value === fr && T.gstop.value === '2', 'focusGodRoute jumps manual form to affected route/stop');
+ok(T.parseClock(byId['gdeptime'].value) <= T.SIM.t + 1, 'auto-relief departure is no later than current sim time');
+byId['gclear'].onclick(); T.EXTRA_DEPS.length = 0; byId['godbtn'].onclick(); T.setReal(false);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

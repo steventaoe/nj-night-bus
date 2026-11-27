@@ -257,9 +257,60 @@ html = '''<!DOCTYPE html>
  .ffollow{color:#8fa0c9;font-size:11px;cursor:pointer;white-space:nowrap}
  #fclose{background:#141c3d;color:#c6d2f2;border:1px solid #2c3a6e;border-radius:6px;padding:3px 10px;cursor:pointer;font-size:12px}
  #fclose:hover{background:#2c3a6e}
- .finfo{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:8px 16px;font-size:11.5px;color:#7f8db8;border-bottom:1px solid #1c2547}
+ .finfo{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:8px 16px;font-size:11.5px;color:#7f8db8;border-bottom:1px solid #1c2547}
  .finfo b{display:block;color:#e8ecf8;font-size:13px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
  #fstat b{color:#7dd87d}
+ #fcrowd b{font-size:12px}
+ .fcbar{height:6px;border-radius:3px;background:#1c2547;overflow:hidden;margin-top:4px}
+ .fcbar i{display:block;height:100%;width:0;border-radius:3px;background:#34d399;transition:width .2s,background .2s}
+ .fcio{display:block;font-size:10px;color:#7f8db8;margin-top:3px;white-space:nowrap}
+ #godbtn{color:#f0abfc}
+ #godbtn.on{background:#3b1d47;border-color:#a855f7;color:#f5d0fe}
+ #godbtn:disabled{opacity:.38;cursor:default}
+ #godpanel{position:fixed;left:14px;bottom:74px;width:300px;max-height:70vh;overflow:auto;z-index:1200;background:#0e1430f2;border:1px solid #a855f7;border-radius:12px;box-shadow:0 14px 50px rgba(0,0,0,.6);backdrop-filter:blur(6px);font-size:12px;color:#c7d0ee}
+ .ghead{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-bottom:1px solid #2a2347;position:sticky;top:0;background:#0e1430}
+ .gtitle{font-weight:700;color:#f5d0fe}
+ .ghead button{background:none;border:none;color:#8b96c4;cursor:pointer;font-size:14px}
+ .gbody{padding:8px 12px 12px}
+ .gsec{margin-bottom:12px}
+ .glabel{font-weight:600;color:#e3d6ff;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+ .gpresets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+ .gpresets button{flex:1;min-width:80px;background:#1c1740;border:1px solid #4c3a75;color:#e3d6ff;border-radius:7px;padding:6px 4px;cursor:pointer;font-size:11px}
+ .gpresets button:hover{background:#2a2347}
+ .gdepquick{display:flex;gap:5px}
+ .gdepquick button{background:#1c1740;border:1px solid #4c3a75;color:#e3d6ff;border-radius:6px;padding:3px 9px;cursor:pointer;font-size:11px}
+ .gdepquick button:hover{background:#2a2347}
+ .grow{display:flex;align-items:center;gap:8px;margin:5px 0}
+ .grow label{flex:0 0 78px;color:#8b96c4}
+ .grow input[type=range]{flex:1}
+ .grow input[type=text],.grow select{flex:1;background:#0b1020;border:1px solid #2a2347;color:#e8ecf8;border-radius:6px;padding:4px 6px;font-size:12px}
+ .grow b{color:#f5d0fe;min-width:38px;text-align:right}
+ .gplace{width:100%;background:#3b1d47;border:1px solid #a855f7;color:#f5d0fe;border-radius:8px;padding:8px;cursor:pointer;font-size:12px;margin-top:4px}
+ .gplace.armed{background:#a855f7;color:#1a0b2e;font-weight:700}
+ .ghint{font-size:10.5px;color:#7f8db8;margin-top:6px;line-height:1.5}
+ .gmini{background:none;border:1px solid #4c3a75;color:#c9b6ff;border-radius:5px;padding:1px 7px;cursor:pointer;font-size:10px}
+ .gevents{display:flex;flex-direction:column;gap:5px}
+ .gempty{color:#5a648c;font-size:11px}
+ .gev{display:flex;justify-content:space-between;align-items:center;background:#161b3a;border:1px solid #2a2347;border-radius:7px;padding:5px 8px}
+ .gev button{background:none;border:none;color:#f87171;cursor:pointer}
+ #toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:1500;background:#1c1740f5;border:1px solid #a855f7;color:#f5d0fe;padding:10px 18px;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.5);font-size:13px;max-width:80vw;text-align:center}
+ #achpage{position:fixed;inset:0;z-index:1400;background:rgba(4,7,18,.72);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+ #achpage[hidden]{display:none}
+ .acard{width:min(680px,92vw);max-height:84vh;overflow:auto;background:#0e1430;border:1px solid #a855f7;border-radius:14px;box-shadow:0 20px 70px rgba(0,0,0,.7)}
+ .ahead{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #2a2347;position:sticky;top:0;background:#0e1430}
+ .atitle{font-weight:700;font-size:16px;color:#f5d0fe}
+ #achcount{color:#8b96c4;font-size:12px;flex:1}
+ .ahead button{background:none;border:none;color:#8b96c4;cursor:pointer;font-size:14px}
+ .abody{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;padding:14px 16px}
+ .ach{border:1px solid #2a2347;border-radius:10px;padding:10px 12px;background:#12183a;opacity:.55}
+ .ach.got{opacity:1;border-color:#a855f7;background:#1c1740}
+ .ach .ai{font-size:22px}
+ .ach .an{font-weight:700;color:#e8ecf8;margin:3px 0;font-size:13px}
+ .ach.got .an{color:#f5d0fe}
+ .ach .ad{font-size:11px;color:#8b96c4;line-height:1.45}
+ .ach .at{font-size:10px;color:#34d399;margin-top:4px}
+ .afoot{padding:10px 16px;border-top:1px solid #2a2347;color:#5a648c;font-size:11px}
+ @media(max-width:760px){#godpanel{left:8px;right:8px;width:auto;bottom:120px;max-height:55vh}}
  .fstrip{overflow-x:auto;overflow-y:hidden;height:118px;position:relative}
  .fstrip::-webkit-scrollbar{height:9px}
  .fstrip::-webkit-scrollbar-track{background:#070b1a}
@@ -358,6 +409,7 @@ html = '''<!DOCTYPE html>
  <button id="speedbtn" title="呼出速度调节盘">⏱ 1分/秒 ▴</button>
  <button id="modebtn" title="当前：理论模式（图定时刻表）">🌙 理论模式</button>
  <button id="daybtn" title="现实模式客流日型（仅影响现实模式停站需求）" disabled>🗓 工作日</button>
+ <button id="godbtn" title="金手指模式：注入活动客流、加车调度（基于现实模式）" disabled>🪄 金手指</button>
  <button id="fsbtn" title="全屏显示">⛶ 全屏</button>
  <span id="clock">--:--</span>
  <input id="scrub" type="range" title="拖动进度条">
@@ -404,8 +456,53 @@ html = '''<!DOCTYPE html>
   <div>下一站<b id="fnext">—</b></div>
   <div>预计到达<b id="feta">—</b></div>
   <div id="fstat">状态<b id="fstatv">—</b></div>
+  <div id="fcrowd">拥挤度<b id="fcrowdv">—</b><div class="fcbar"><i id="fcfill"></i></div><span class="fcio" id="fcio"></span></div>
  </div>
  <div class="fstrip" id="fstrip"><div class="finner" id="finner"></div></div>
+</div>
+<div id="godpanel" hidden>
+ <div class="ghead"><span class="gtitle">🪄 金手指调度台</span><button id="godclose">✕</button></div>
+ <div class="gbody">
+  <div class="gsec">
+   <div class="glabel">注入活动客流（散场接驳）</div>
+   <div class="gpresets">
+    <button data-preset="concert">🎤 奥体演唱会</button>
+    <button data-preset="sports">🏟 体育赛事</button>
+    <button data-preset="qingao">🎤 青奥演唱会</button>
+    <button data-preset="festival">🎵 咪豆音乐节</button>
+    <button data-preset="lantern">🏮 秦淮灯会</button>
+    <button data-preset="laomendong">🏮 老门东灯会</button>
+   </div>
+   <div class="grow"><label>人数 <b id="gcrowdv">3000</b></label><input id="gcrowd" type="range" min="200" max="20000" step="100" value="3000"></div>
+   <div class="grow"><label>散场时刻</label><input id="gtime" type="text" value="22:30" placeholder="22:30"></div>
+   <div class="grow"><label>持续(分)</label><input id="gdur" type="range" min="20" max="120" step="5" value="60"><b id="gdurv">60</b></div>
+   <div class="grow"><label>扩散半径(m)</label><input id="gradius" type="range" min="300" max="2500" step="100" value="1200"><b id="gradiusv">1200</b></div>
+   <button id="gplace" class="gplace">📍 点击地图放置活动</button>
+   <div class="ghint" id="ghint">选预设或调参后点「放置」，再点地图任意位置；客流自最近站点向周边数站扩散，并按线路分担（含换乘外溢）。</div>
+  </div>
+  <div class="gsec">
+   <div class="glabel">活动列表 <button id="gclear" class="gmini">清空</button></div>
+   <div id="gevents" class="gevents"><span class="gempty">暂无活动</span></div>
+  </div>
+  <div class="gsec">
+   <div class="glabel">加车调度</div>
+   <div class="grow"><label>线路</label><select id="groute"></select></div>
+   <div class="grow"><label>方向</label><select id="gdir"></select></div>
+   <div class="grow"><label>加车站点</label><select id="gstop"></select></div>
+   <div class="grow"><label>发车时刻</label><input id="gdeptime" type="text" value="22:45" placeholder="22:45"></div>
+   <div class="grow"><label>快捷发车</label><span class="gdepquick"><button data-off="0">现在</button><button data-off="10">+10分</button><button data-off="20">+20分</button></span></div>
+   <button id="gadd" class="gplace">🚌 从该站加开一班车</button>
+   <div class="ghint">金手指模式从拥挤站直接加车；活动散场致拥挤时自动加车纾解，并把本栏跳到受影响线路、发车时刻默认设为当前模拟时间（不晚于现在）。「现在/+10分/+20分」按当前时间配置即时或延时发车。现实模式自动调度则从始发站加车并飞站至拥挤站。</div>
+  </div>
+ </div>
+</div>
+<div id="toast" hidden></div>
+<div id="achpage" hidden>
+ <div class="acard">
+  <div class="ahead"><span class="atitle">🏆 成就</span><span id="achcount"></span><button id="achclose">✕ 关闭</button></div>
+  <div class="abody" id="achbody"></div>
+  <div class="afoot">成就自动保存在本浏览器 · 隐藏入口：连续点击侧栏标题 5 次，或按 Ctrl+Shift+A</div>
+ </div>
 </div>
 <div id="sidebackdrop" hidden></div>
 <aside id="side">
@@ -489,6 +586,23 @@ html = '''<!DOCTYPE html>
     <p>站名匹配为<b>近似</b>（与信号灯几何推断同理），并非逐一实地测距；如需精确可接入真实站点坐标/OD 客流。模型预留了客流模拟接口 <code>setFlowModel(fn)</code>：注入 <code>fn(站名, 线路, 到站时刻, 日型)→负载</code> 即可用实测客流覆盖参数化需求。</p>
    </div>
    <div class="hsec">
+    <h3>客流模拟与拥挤度</h3>
+    <p>现实模式下，闪灯图新增<b>拥挤度</b>栏：按车型额定载客量计算实时车载人数与占比，分三档——<span style="color:#34d399">≤30% 舒适</span> / <span style="color:#fbbf24">30–70% 一般</span> / <span style="color:#f87171">70–100% 拥挤</span>，并显示当前站<b>上/下车人数</b>。理论模式仅显示额定载客提示。</p>
+    <p>额定载客量按车型估算：主城干线 10.5–12m 纯电动公交约 <b>90 人</b>（25–46 座+站立），溧水/高淳郊区线约 <b>70 人</b>，守时1号线双节车约 <b>150 人</b>（逐线精确配车未公开，故为车型级估计）。逐站上下车人数与<b>停站时长同源</b>：开关门即走的短停对应 0–1 人，普通停站数人，枢纽/夜生活大站长停对应多人，并与实测 POV 节奏一致。车载人数逐站累计（上车−下车），到终点清空。</p>
+    <p>预留<b>客流流线（OD）接口</b> <code>setODModel(fn)</code>：注入 <code>fn(线路,方向,班次,上车站i,下车站j)→人数</code> 即可用真实 OD 替换概率下车模型（本轮不计算，留待后续严肃研究）。另有 <code>setFlowModel(fn)</code> 覆盖逐站需求负载。</p>
+   </div>
+   <div class="hsec">
+    <h3>金手指模式（活动客流与加车调度）</h3>
+    <p>切到现实模式后，底部 <b>🪄 金手指</b> 按钮可用，打开调度台。可模拟<b>演唱会/体育赛事/音乐节/灯会</b>等深夜散场、地铁已停运、夜班公交接驳的场景：选预设（奥体演唱会/体育赛事/青奥演唱会/咪豆音乐节/秦淮灯会·白鹭洲/老门东灯会）一键注入，或调参（人数/散场时刻/持续/扩散半径）后点「放置」再<b>点击地图任意位置</b>自由注入。</p>
+    <p>注入的客流以<b>最近站点为中心向周边数站扩散</b>（距离衰减权重），并按各站途经线路分担——因此<b>换乘客流会外溢到其他线路</b>，影响整个线网。客流按散场曲线（前 15 分钟爬坡、随后衰减）守恒地分配到窗口内经过的各班车上。</p>
+    <p><b>加车调度</b>：金手指模式可在线路/方向/站点下拉框选择<b>拥挤站直接加开一班车</b>，发车时刻默认设为当前模拟时间（不晚于现在），「现在/+10分/+20分」快捷按钮可配置即时或延时发车；活动散场致某站车载≥75% 时<b>自动从拥挤站加车纾解</b>，并把下方加车栏<b>自动跳到受影响线路</b>。现实模式<b>自动调度</b>则在某班车拥挤度≥90% 时，从<b>始发站加车并飞站</b>直达拥挤站。加车会分担注入客流、缓解拥挤——可在闪灯图对比加车前后占比。活动列表可单独移除或清空。</p>
+   </div>
+   <div class="hsec">
+    <h3>隐藏成就彩蛋</h3>
+    <p>本站藏有一个仿 Steam 的<b>成就页</b>，记录你的探索（首次打开、切现实模式、节假日人潮、金手指上手、奥体演唱会、挤爆啦、加车调度、深夜守望、时光飞逝、跑完全程）。成就自动保存在本浏览器。</p>
+    <p>开启方式（隐蔽入口）：<b>连续快速点击侧栏标题「南京夜间公交 · 真实地图」5 次</b>，或按快捷键 <b>Ctrl+Shift+A</b>。解锁时会弹出提示。</p>
+   </div>
+   <div class="hsec">
     <h3>守时公交与线路备注</h3>
     <p>守时1号线：泰冯路地铁站西 23:10 发车接驳 S8 末班（21:40 方州广场东回送）；守时2号线：月苑南路 23:20–00:20 / 迈皋桥东 23:40–00:40 接驳 1 号线末班。</p>
     <p>Y6/Y9/Y14/Y15/Y18/Y19/Y20 已撤销；Y4/Y17/Y21 存在区间车（对向起讫站不同）；Y30/Y41 末班早于午夜。__SUBNOTE__</p>
@@ -537,12 +651,52 @@ const GCJ = (() => {
   };
 })();
 
+// ---------- cached basemap tiles ----------
+// First visit fetches tiles normally and stores each blob in IndexedDB; later visits
+// serve tiles from the local cache so the basemap paints instantly even on a weak network.
+let tileDBP=null;
+function tileDB(){
+  if(tileDBP) return tileDBP;
+  tileDBP=new Promise(res=>{
+    try{
+      if(typeof indexedDB==='undefined'){ res(null); return; }
+      const rq=indexedDB.open('njbus_tiles_v1',1);
+      rq.onupgradeneeded=()=>{ try{ rq.result.createObjectStore('t'); }catch(e){} };
+      rq.onsuccess=()=>res(rq.result);
+      rq.onerror=()=>res(null);
+      rq.onblocked=()=>res(null);
+    }catch(e){ res(null); }
+  });
+  return tileDBP;
+}
+function tileGet(url){ return tileDB().then(db=>new Promise(res=>{
+  if(!db){ res(null); return; }
+  try{ const rq=db.transaction('t','readonly').objectStore('t').get(url); rq.onsuccess=()=>res(rq.result||null); rq.onerror=()=>res(null); }catch(e){ res(null); }
+})); }
+function tilePut(url,blob){ tileDB().then(db=>{ if(!db)return; try{ db.transaction('t','readwrite').objectStore('t').put(blob,url); }catch(e){} }); }
+const CachedTiles=L.TileLayer.extend({
+  createTile(coords,done){
+    const tile=document.createElement('img');
+    tile.alt='';
+    L.DomEvent.on(tile,'load',()=>{ const s=tile.src; done(null,tile); if(s&&s.indexOf('blob:')===0)setTimeout(()=>URL.revokeObjectURL(s),0); });
+    L.DomEvent.on(tile,'error',()=>done(new Error('tile error'),tile));
+    const url=this.getTileUrl(coords);
+    tileGet(url).then(hit=>{
+      if(hit){ tile.src=URL.createObjectURL(hit); return; }
+      fetch(url,{mode:'cors'}).then(r=>{ if(!r.ok)throw new Error('http '+r.status); return r.blob(); })
+        .then(b=>{ tilePut(url,b); tile.src=URL.createObjectURL(b); })
+        .catch(()=>{ tile.crossOrigin=''; tile.src=url; });
+    });
+    return tile;
+  }
+});
+function cachedTiles(url,opts){ return new CachedTiles(url,opts); }
 const map = L.map('map', {preferCanvas: true, zoomSnap: 0.5}).setView([32.06, 118.79], 11);
-const amap = L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',
+const amap = cachedTiles('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',
   {attribution: '&copy; 高德地图 AutoNavi', subdomains: '1234', maxZoom: 18, coordMode: 'gcj'});
-const osmde = L.tileLayer('https://tile.openstreetmap.de/{z}/{x}/{y}.png',
+const osmde = cachedTiles('https://tile.openstreetmap.de/{z}/{x}/{y}.png',
   {attribution: '&copy; OpenStreetMap', maxZoom: 19, coordMode: 'wgs'});
-const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+const osm = cachedTiles('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
   {attribution: '&copy; OpenStreetMap', maxZoom: 19, coordMode: 'wgs'});
 amap.addTo(map);
 L.control.layers({'高德（国内快）': amap, 'OSM德国': osmde, 'OSM标准': osm}, null, {position: 'topleft'}).addTo(map);
@@ -813,6 +967,131 @@ function metroW(nm, clk, dt){
 let FLOW_MODEL=null;
 function setFlowModel(fn){ FLOW_MODEL=(typeof fn==='function')?fn:null; realCache.clear(); dirty=true; }
 function flowLoad(nm,rid,clk,dt){ try{ return FLOW_MODEL?FLOW_MODEL(nm,rid,clk,dt):null; }catch(e){ return null; } }
+// ---- passenger flow (realistic + god mode) ----
+// Rated capacity by vehicle class. Nanjing trunk night lines run 10.5-12m battery
+// buses rated ~90-104 pax (25-46 seated + standing); suburban 溧水/高淳 use smaller
+// ~70-pax buses; SS1 守时公交 uses 双节 (articulated) ~150-pax cars. Per-route exact
+// assignment is not public, so these are class estimates (evidence in README).
+const CAP_DEFAULT = 90;
+const CAP_OVERRIDE = { SS1:150, SS2:90, LSY1:70, LSY2:70, LSY5:70, GC801:70, GC802:70, GC803:70 };
+function capacity(rid){ const c=CAP_OVERRIDE[rid]; return c==null?CAP_DEFAULT:c; }
+// crowding tiers: <=30% 舒适, 30-70% 一般, 70-100% 拥挤
+function crowdTier(r){ return r<=0.30?'舒适':r<=0.70?'一般':'拥挤'; }
+function crowdColor(r){ return r<=0.30?'#34d399':r<=0.70?'#fbbf24':'#f87171'; }
+// demand load shared with buildReal (same formula; kept separate so the dwell rng
+// stream is untouched). i/n give origin/terminal modifiers.
+function demandLoad(rid,nm,clk,i,n){
+  const nt=nodeType(nm);
+  const nRoutes=nm&&DATA.stops[nm]?Object.keys(DATA.stops[nm].routes).length:1;
+  const major=!nt&&nRoutes>=REAL_CFG.majorRoutes;
+  let load=routeW(rid)*dayMul(rid,DAYTYPE)*todW(clk)*metroW(nm,clk,DAYTYPE);
+  if(nt) load*=nodeMul(nt)*nodeGate(nt,clk); else if(major) load*=REAL_CFG.majorMul;
+  if(i===0) load*=REAL_CFG.originMul; else if(i===n-1) load*=REAL_CFG.endMul;
+  const fl=flowLoad(nm,rid,clk,DAYTYPE); if(fl!=null) load=fl;
+  return Math.max(REAL_CFG.loadMin,Math.min(REAL_CFG.loadMax,load));
+}
+// alighting probability: a fraction of onboard passengers get off here. Hubs and
+// nightlife discharge more; later stops discharge more (people reach destinations).
+function alightProb(nm,i,n){
+  const nt=nodeType(nm); let p=0.18;
+  if(nt==='rail'||nt==='hsr'||nt==='coach') p=0.40;
+  else if(nt==='nightlife') p=0.34;
+  else if(nt==='hospital') p=0.26;
+  p*=0.7+0.6*(i/Math.max(1,n-1));
+  return Math.min(0.7,p);
+}
+// ---- god-mode event demand field (filled by the 金手指 layer; empty in plain modes) ----
+let EVENTS=[], EVENT_VER=0, EXTRA_DEPS=[];
+function godSig(){ return EVENT_VER+':'+EXTRA_DEPS.length; }
+// dispersal curve: ramp up over first 15 min, plateau, then decay to 0 at dur.
+function curveAt(dt,dur){ return dt<0||dt>dur?0:(dt<15?dt/15:Math.max(0,1-(dt-15)/Math.max(1,dur-15))); }
+function stopIdx(rid,di,nm){ const r=DATA.routes.find(x=>x.id===rid); return r?r.dirs[di].stops.indexOf(nm):-1; }
+// pass-times of EXTRA_DEPS on (rid,nm) inside an event window. Adding 加车 puts more
+// departures in the denominator below, so the injected crowd splits and crowding eases.
+function extraPassTimes(rid,nm,ev){
+  const out=[];
+  for(const e of EXTRA_DEPS){
+    if(e.rid!==rid) continue;
+    const idx=stopIdx(rid,e.di,nm); if(idx<0||idx<e.fromIdx) continue;
+    const v=SCHED.dirs[rid+'|'+e.di]; if(!v) continue;
+    const pass=e.dep+(v.stopT[idx]-v.stopT[e.fromIdx]);
+    if(pass>=ev.tStart&&pass<=ev.tStart+ev.dur) out.push(pass);
+  }
+  return out;
+}
+// Extra boardings injected at a stop by active events (concert/sports dispersal).
+// Crowd spreads spatially (stopW, sum=1) and across EVERY route serving the stop
+// (routeShare[nm], sum=1 per stop → transfer spillover to other lines), then is
+// conserved across the departures passing during the window (scheduled + extra),
+// weighted by the dispersal curve. Deterministic given EVENTS/EXTRA_DEPS.
+function eventBoard(nm,clk,rid){
+  if(!EVENTS.length) return 0;
+  let s=0;
+  for(const ev of EVENTS){
+    const sw=ev.stopW[nm]; if(sw==null) continue;
+    const rm=ev.routeShare[nm]; const rs=rm?rm[rid]:0; if(!rs) continue;
+    const c=curveAt(clk-ev.tStart,ev.dur); if(c<=0) continue;
+    const sched=(ev.sched[nm]&&ev.sched[nm][rid])||[];
+    const extra=extraPassTimes(rid,nm,ev);
+    let wsum=0;
+    for(const p of sched) wsum+=curveAt(p-ev.tStart,ev.dur);
+    for(const p of extra) wsum+=curveAt(p-ev.tStart,ev.dur);
+    if(wsum<=1e-9) continue;
+    s+=ev.crowd*sw*rs*c/wsum;
+  }
+  return s;
+}
+// ---- reserved OD (origin-destination) interface ----
+// A future serious OD study can inject setODModel(fn): fn(rid,di,k,i,j)->pax travelling
+// from stop i to stop j on this departure. When present it would replace the
+// probabilistic alightings below with true destination-aware alightings. Not computed now.
+let OD_MODEL=null;
+function setODModel(fn){ OD_MODEL=(typeof fn==='function')?fn:null; paxCache.clear(); }
+function odFlow(rid,di,k,i,j){ try{ return OD_MODEL?OD_MODEL(rid,di,k,i,j):null; }catch(e){ return null; } }
+// Per-departure boardings/alightings/onboard, deterministic (separate rng stream so the
+// dwell sequence is unchanged). Pax counts are tied to the dwell tier so 上下车客流量与
+// 停站时间相匹配: short door-cycle → 0-1 pax, normal → a few, busy hub → many.
+const PAX_BOARD = 0.6;
+const paxCache = new Map();
+function paxPlan(v,key,k,plan){
+  const ck=key+'|'+k+'|'+DAYTYPE+'|'+godSig();
+  let p=paxCache.get(ck); if(p) return p;
+  const rid=key.split('|')[0], di=+key.split('|')[1];
+  const r=DATA.routes.find(x=>x.id===rid); const names=v.names||(r?r.dirs[di].stops:[]);
+  const n=v.stopT.length, cap=capacity(rid);
+  const rng=mulberry32(hashStr(key+'#'+k+'#pax'));
+  const dwr=plan&&plan.dwr?plan.dwr:null, sk=plan?plan.sk:null, dw=SCHED.model.dwell;
+  const B=new Array(n).fill(0), A=new Array(n).fill(0), occ=new Array(n).fill(0);
+  let onboard=0;
+  for(let i=0;i<n;i++){
+    if(sk&&sk[i]){ occ[i]=onboard; continue; }
+    const nm=names[i], clk=v.deps[k]+v.stopT[i];
+    const load=demandLoad(rid,nm,clk,i,n);
+    const d=dwr?(dwr[i]!=null?dwr[i]:dw):dw;
+    const tier=d<=REAL_CFG.quickMax+1e-9?0:d>=dw*REAL_CFG.busyMul[0]?2:1;
+    const tierMul=[0.5,1.0,1.9][tier];
+    let board=Math.round(load*PAX_BOARD*tierMul*(0.7+rng()*0.7));
+    board+=Math.round(eventBoard(nm,clk,rid));
+    if(i===n-1) board=0;
+    let alight;
+    if(i===n-1) alight=onboard;
+    else if(i===0) alight=0;
+    else alight=Math.round(onboard*alightProb(nm,i,n)*(0.8+rng()*0.4));
+    alight=Math.min(onboard,alight);
+    const afterAlight=onboard-alight;
+    board=Math.min(board,cap-afterAlight);
+    onboard=afterAlight+board;
+    B[i]=board; A[i]=alight; occ[i]=onboard;
+  }
+  p={B,A,occ,cap}; paxCache.set(ck,p); return p;
+}
+// occupancy of a departure at elapsed real minutes el (interpolated between stops).
+function occAt(v,plan,pax,el){
+  if(!pax) return 0;
+  const st=plan?plan.st:v.stopT, n=st.length;
+  let i=0; while(i<n-1&&st[i+1]<=el) i++;
+  return pax.occ[i];
+}
 function hashStr(s) { let h = 2166136261 >>> 0; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
 function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 function peakW(m) {
@@ -850,7 +1129,7 @@ function buildReal(v, key, k) {
   const n = v.stopT.length, dw = SCHED.model.dwell, f = v.frames, depBase = v.deps[k];
   const r = DATA.routes.find(x => x.id === key.split('|')[0]);
   const di = +key.split('|')[1];
-  const names = r ? r.dirs[di].stops : [];
+  const names = v.names || (r ? r.dirs[di].stops : []);
   const sk = new Array(n).fill(false);
   if (v.skip) for (const w of v.skip) for (let i = 0; i < n; i++) if (w.i === i) {
     const pass = depBase + v.stopT[i]; if (pass >= w.from && pass < w.to) sk[i] = true;
@@ -1037,6 +1316,7 @@ function refreshBarLabels(){
   const db = document.getElementById('daybtn'); if (db) db.textContent = dayLabel();
   if (fsbtn) fsbtn.textContent = fsLabel();
   const st = document.getElementById('sidetoggle'); if (st) st.textContent = isNarrow() ? '☰' : '☰ 线路';
+  const gb = document.getElementById('godbtn'); if (gb) gb.textContent = isNarrow() ? '🪄' : '🪄 金手指';
 }
 const playBtn = document.getElementById('play');
 const scrub = document.getElementById('scrub');
@@ -1075,6 +1355,7 @@ let gearIdx = 3, gdrag = false;
 function setSpeed(i) {
   gearIdx = Math.max(0, Math.min(GEARS.length - 1, i));
   SIM.speed = GEARS[gearIdx];
+  if (SIM.speed >= 120) unlock('speedster');
   const frac = gearIdx / (GEARS.length - 1);
   const a = 195 - 210 * frac;
   gneedle.setAttribute('transform', 'rotate(' + (90 - a).toFixed(1) + ' 66 70)');
@@ -1119,6 +1400,9 @@ function setReal(on) {
   modebtn.title = REAL ? '当前：现实模式（随机延误 / 红绿灯 / 堵车 / 停站波动）' : '当前：理论模式（图定时刻表）';
   const db = document.getElementById('daybtn');
   if (db) { db.disabled = !REAL; db.textContent = dayLabel(); db.classList.toggle('on', REAL && DAYTYPE !== 'weekday'); }
+  const gb = document.getElementById('godbtn');
+  if (gb) { gb.disabled = !REAL; if (!REAL && GOD) setGod(false); }
+  if (REAL) unlock('realist');
   dirty = true;
   renderSim(); renderBoard();
   if (flash) updateFlash();
@@ -1131,6 +1415,7 @@ function setDayType(dt) {
   daybtn.textContent = dayLabel();
   daybtn.classList.toggle('on', dt !== 'weekday');
   daybtn.title = '现实模式客流日型：' + DAYLAB[dt] + '（仅影响现实模式停站需求；地铁延时与客流随日型变化）';
+  if (dt === 'holiday') unlock('holiday');
   dirty = true; renderSim(); renderBoard();
   if (flash) updateFlash();
   if (livePopup) livePopup.p.setContent(livePopup.i.html + nextArrivals(livePopup.i.nm, livePopup.i.st));
@@ -1350,14 +1635,22 @@ refreshBarLabels();
 const FSP = 78;
 let flash = null, lastFlash = 0;
 function openFlash(key) {
-  const parts = key.split('|');
-  const rid = parts[0], di = +parts[1], k = +parts[2];
-  const r = DATA.routes.find(x => x.id === rid);
-  const v = SCHED.dirs[rid + '|' + di];
-  if (!r || !v) return;
-  const d = r.dirs[di];
-  const plan = planFor(v, rid + '|' + di, k);
-  flash = {key, rid, di, k, r, d, v, plan};
+  let rid, di, k, r, d, v, plan, extra = false;
+  const ex = EXTRA_DEPS.find(e => e.key === key);
+  if (ex) {
+    rid = ex.rid; di = ex.di; k = 0; extra = true;
+    r = DATA.routes.find(x => x.id === rid); v = ex.v; plan = planFor(v, ex.key, 0);
+    d = {stops: v.names, from: r.dirs[di].stops[ex.fromIdx], to: r.dirs[di].to};
+  } else {
+    const parts = key.split('|');
+    rid = parts[0]; di = +parts[1]; k = +parts[2];
+    r = DATA.routes.find(x => x.id === rid);
+    v = SCHED.dirs[rid + '|' + di];
+    if (!r || !v) return;
+    d = r.dirs[di];
+    plan = planFor(v, rid + '|' + di, k);
+  }
+  flash = {key, rid, di, k, r, d, v, plan, extra};
   const n = d.stops.length;
   const inner = document.getElementById('finner');
   inner.style.width = ((n - 1) * FSP + 60) + 'px';
@@ -1378,7 +1671,7 @@ function openFlash(key) {
   const fl = document.getElementById('fline');
   fl.textContent = r.label; fl.style.background = r.color;
   document.getElementById('fdir').textContent = rid === 'Y33' ? (di === 0 ? '内圈运行' : '外圈运行') : d.from + ' → ' + d.to;
-  document.getElementById('fdep').textContent = '本次发车 ' + fmtT(v.deps[k] + (plan && plan.real ? plan.depDelay : 0));
+  document.getElementById('fdep').textContent = '本次发车 ' + fmtT(v.deps[k] + (plan && plan.real ? plan.depDelay : 0)) + (extra ? '（加车）' : '');
   updateFlash();
 }
 function flashGeom() {
@@ -1432,6 +1725,20 @@ function updateFlash() {
   document.getElementById('feta').textContent = i < n - 1 ? fmtT(dep + st[j]) : '已到达';
   document.getElementById('fstatv').textContent = SIM.t < dep ? '待发车' : arrived ? '终到收车'
     : dwelling ? '停靠上下客' : passing ? '飞站通过不停车' : '区间运行';
+  // crowding gauge (realistic / god mode only; theoretical shows rated capacity hint)
+  const pax = flash.plan && flash.plan.real ? paxPlan(flash.v, flash.key, flash.k, flash.plan) : null;
+  const cv = document.getElementById('fcrowdv'), cf = document.getElementById('fcfill'), cio = document.getElementById('fcio');
+  if (pax) {
+    const occ = pax.occ[i], ratio = occ / pax.cap, col = crowdColor(ratio);
+    cv.textContent = occ + '/' + pax.cap + ' · ' + crowdTier(ratio) + ' ' + Math.round(ratio * 100) + '%';
+    cv.style.color = col;
+    cf.style.width = Math.min(100, ratio * 100) + '%'; cf.style.background = col;
+    cio.textContent = (dwelling || arrived) ? '本站 上' + pax.B[i] + ' / 下' + pax.A[i] : '上' + pax.B[i] + ' / 下' + pax.A[i];
+    if (ratio >= 1) unlock('full');
+  } else {
+    cv.textContent = '理论模式 · 额定' + capacity(flash.rid) + '人'; cv.style.color = '#7f8db8';
+    cf.style.width = '0%'; cio.textContent = '切现实模式看客流';
+  }
   const lit = document.getElementById('flit');
   lit.style.background = r.color; lit.style.color = r.color;
   const seg = document.getElementById('fseg');
@@ -1496,8 +1803,11 @@ helpq.oninput = helpSearch;
 helpEl.addEventListener('click', e => { if (e.target === helpEl) closeHelp(); });
 window.addEventListener('keydown', e => {
   const tag = (e.target && e.target.tagName) || '';
+  if (e.ctrlKey && e.shiftKey && (e.key === 'A' || e.key === 'a')) { openAch(); e.preventDefault(); return; }
   if (e.key === 'Escape') {
     if (!helpEl.hidden) { closeHelp(); return; }
+    const ap = document.getElementById('achpage'); if (ap && !ap.hidden) { closeAch(); return; }
+    const gp = document.getElementById('godpanel'); if (gp && !gp.hidden) { setGod(false); return; }
     if (flash) closeFlash();
     if (!speedpanel.hidden) setSpeedPanel(false);
     return;
@@ -1541,6 +1851,25 @@ function renderSim() {
       }
     });
   }
+  for (const e of EXTRA_DEPS) {
+    if (e.dep > t) continue;
+    const plan = planFor(e.v, e.key, 0);
+    if (e.dep + (plan ? plan.run : e.v.run) < t) continue;
+    active.add(e.key);
+    const q = posAt(e.v, t - e.dep, plan);
+    const r = DATA.routes.find(x => x.id === e.rid);
+    let en = pool.get(e.key);
+    if (!en) {
+      const mk = L.marker(pt(q[0], q[1]), {icon: busIcon(r.color, e.rid), zIndexOffset: 650});
+      mk.bindTooltip(r.label + ' · 加车 ' + fmtT(e.dep) + '发车（点击查看闪灯图）', {direction: 'top', offset: [0, -12]});
+      mk.on('click', () => openFlash(e.key));
+      mk.addTo(map);
+      en = {mk}; pool.set(e.key, en);
+    } else en.mk.setLatLng(pt(q[0], q[1]));
+    const el = en.mk.getElement();
+    if (el) el.querySelector('.busrot').style.transform = 'rotate(' + q[2].toFixed(1) + 'deg)';
+  }
+  if (REAL && t - lastAuto > 2) { lastAuto = t; autoDispatch(t, active); }
   for (const [key, e] of pool) if (!active.has(key)) { map.removeLayer(e.mk); pool.delete(key); }
   document.getElementById('bcount').textContent = '运行 ' + active.size + ' 辆';
   const now = performance.now();
@@ -1562,6 +1891,7 @@ function loop(now) {
     dirty = true;
   }
   if (dirty) renderSim();
+  achTick(SIM.t);
   if (flash) placeFlashBus();
   requestAnimationFrame(loop);
 }
@@ -1697,6 +2027,229 @@ map.on('baselayerchange', e => {
   applyFilter();
   homeView();
 });
+// ---------- hidden achievements (Steam-style easter egg) ----------
+const ACH = [
+  {id:'welcome', icon:'🌙', name:'欢迎来到南京夜班巴士模拟', desc:'首次打开页面'},
+  {id:'realist', icon:'🌆', name:'脚踏实地', desc:'首次切换到现实模式'},
+  {id:'holiday', icon:'🏮', name:'灯会人潮', desc:'切换到节假日客流日型'},
+  {id:'godmode', icon:'🪄', name:'金手指上手', desc:'首次开启金手指调度台'},
+  {id:'concert', icon:'🎤', name:'比歌声更快', desc:'在金手指模式下于奥体中心模拟演唱会散场'},
+  {id:'full', icon:'🚇', name:'挤爆啦！', desc:'模拟拥挤程度达到 100%'},
+  {id:'dispatcher', icon:'🚌', name:'调度有方', desc:'首次加开一班车'},
+  {id:'nightowl', icon:'🦉', name:'深夜守望', desc:'模拟时间进入凌晨 02:00–04:00'},
+  {id:'speedster', icon:'⚡', name:'时光飞逝', desc:'使用 120 分/秒快进'},
+  {id:'marathon', icon:'🏁', name:'跑完全程', desc:'播放到收车窗口末端'}
+];
+const ACH_KEY='njbus_ach_v1';
+let achGot={};
+try{ const s=localStorage.getItem(ACH_KEY); if(s) achGot=JSON.parse(s)||{}; }catch(e){ achGot={}; }
+function achSave(){ try{ localStorage.setItem(ACH_KEY, JSON.stringify(achGot)); }catch(e){} }
+let toastTimer=null;
+function showToast(msg){ const t=document.getElementById('toast'); if(!t)return; t.textContent=msg; t.hidden=false; if(toastTimer)clearTimeout(toastTimer); toastTimer=setTimeout(()=>{t.hidden=true;},2800); }
+function unlock(id){
+  if(achGot[id]) return;
+  const a=ACH.find(x=>x.id===id); if(!a) return;
+  achGot[id]=Date.now(); achSave();
+  showToast('🏆 成就解锁：'+a.name);
+  const ap=document.getElementById('achpage'); if(ap&&!ap.hidden) renderAch();
+}
+function renderAch(){
+  const body=document.getElementById('achbody'); if(!body)return;
+  let got=0;
+  body.innerHTML=ACH.map(a=>{ const g=!!achGot[a.id]; if(g)got++;
+    return '<div class="ach'+(g?' got':'')+'"><div class="ai">'+(g?a.icon:'🔒')+'</div><div class="an">'+a.name+'</div><div class="ad">'+a.desc+'</div>'+(g?'<div class="at">已解锁</div>':'')+'</div>';
+  }).join('');
+  const c=document.getElementById('achcount'); if(c)c.textContent=got+' / '+ACH.length+' 已解锁';
+}
+function openAch(){ renderAch(); const ap=document.getElementById('achpage'); if(ap)ap.hidden=false; }
+function closeAch(){ const ap=document.getElementById('achpage'); if(ap)ap.hidden=true; }
+document.getElementById('achclose').onclick=closeAch;
+document.getElementById('achpage').addEventListener('click',e=>{ if(e.target.id==='achpage')closeAch(); });
+function achTick(t){ if(t>=1560&&t<=1680)unlock('nightowl'); if(t>=SCHED.end-0.01)unlock('marathon'); }
+// hidden entry: click the sidebar title 5× quickly, or Ctrl+Shift+A (hinted in 说明)
+(function(){ const h=document.querySelector('#side h1'); if(!h)return; let n=0,last=0;
+  h.addEventListener('click',()=>{ const now=Date.now(); if(now-last>1500)n=0; last=now; n++; if(n>=5){n=0;openAch();} });
+  h.style.cursor='pointer';
+})();
+
+// ---------- god mode (金手指): event injection + extra dispatch ----------
+let GOD=false, EVENT_SEQ=0, EXTRA_SEQ=0, armed=false, lastAuto=-1e9;
+const autoDone=new Set();
+const PRESETS={
+  concert:{stop:'奥体中心西门',crowd:3000,time:'23:50',dur:70,radius:1500,label:'奥体演唱会'},
+  sports:{stop:'奥体新城',crowd:5000,time:'00:10',dur:50,radius:1200,label:'体育赛事'},
+  qingao:{stop:'邺城路·青奥村东',crowd:4000,time:'23:30',dur:60,radius:1400,label:'青奥演唱会'},
+  festival:{stop:'天生桥大道东',crowd:8000,time:'22:00',dur:90,radius:1800,label:'咪豆音乐节'},
+  lantern:{stop:'建康路·夫子庙',lat:32.0193,lng:118.7868,crowd:9000,time:'21:30',dur:90,radius:1800,label:'秦淮灯会·白鹭洲'},
+  laomendong:{stop:'中华门城堡',crowd:6000,time:'21:00',dur:80,radius:1500,label:'老门东灯会'}
+};
+function toWgs(lat,lng){ if(MODE!=='gcj')return [lat,lng]; let a=lat,b=lng; for(let i=0;i<3;i++){const g=GCJ(a,b); a+=lat-g[0]; b+=lng-g[1];} return [a,b]; }
+function distM(p,q){ const R=6371000,dLa=(q[0]-p[0])*Math.PI/180,dLo=(q[1]-p[1])*Math.PI/180,la=p[0]*Math.PI/180,lb=q[0]*Math.PI/180;
+  const h=Math.sin(dLa/2)*Math.sin(dLa/2)+Math.cos(la)*Math.cos(lb)*Math.sin(dLo/2)*Math.sin(dLo/2); return 2*R*Math.asin(Math.min(1,Math.sqrt(h))); }
+function parseClock(s){ const m=(s||'').trim().match(/^(\\d{1,2}):(\\d{2})/); if(!m)return null; let v=(+m[1])*60+(+m[2]); if(+m[1]<12)v+=1440; return v; }
+function clockInput(m){ const h=Math.floor(m/60)%24, mm=Math.floor(m%60); return String(h).padStart(2,'0')+':'+String(mm).padStart(2,'0'); }
+// Jump the manual 加车 form to the route/direction/stop just relieved, with departure
+// defaulting to the current sim time (so the extra takes effect no later than now).
+function focusGodRoute(rid,di,stopIdx,t){
+  if(!groute)return;
+  groute.value=rid; fillGodDirs();
+  gdir.value=String(di); fillGodStops();
+  gstop.value=String(stopIdx);
+  const el=document.getElementById('gdeptime'); if(el)el.value=clockInput(t);
+}
+function setCursor(c){ try{ const mc=map.getContainer(); if(mc&&mc.style)mc.style.cursor=c; }catch(e){} }
+const godbtn=document.getElementById('godbtn');
+const godpanel=document.getElementById('godpanel');
+function setGod(on){
+  GOD=!!on&&REAL;
+  godpanel.hidden=!GOD;
+  godbtn.classList.toggle('on',GOD);
+  if(GOD){ unlock('godmode'); fillGodRoutes(); renderEvents(); const el=document.getElementById('gdeptime'); if(el)el.value=clockInput(SIM.t); }
+  else { armed=false; setCursor(''); }
+  dirty=true;
+}
+godbtn.onclick=()=>{ if(godbtn.disabled)return; setGod(!GOD); };
+document.getElementById('godclose').onclick=()=>setGod(false);
+const gcrowd=document.getElementById('gcrowd'),gcrowdv=document.getElementById('gcrowdv');
+const gdur=document.getElementById('gdur'),gdurv=document.getElementById('gdurv');
+const gradius=document.getElementById('gradius'),gradiusv=document.getElementById('gradiusv');
+gcrowd.oninput=()=>gcrowdv.textContent=gcrowd.value;
+gdur.oninput=()=>gdurv.textContent=gdur.value;
+gradius.oninput=()=>gradiusv.textContent=gradius.value;
+function readParams(){ return {crowd:+gcrowd.value, tStart:parseClock(document.getElementById('gtime').value)||1350, dur:+gdur.value, radius:+gradius.value}; }
+document.querySelectorAll('.gpresets button').forEach(b=>{
+  b.onclick=()=>{ const p=PRESETS[b.dataset.preset]; if(!p)return;
+    gcrowd.value=p.crowd; gcrowdv.textContent=p.crowd;
+    document.getElementById('gtime').value=p.time;
+    gdur.value=p.dur; gdurv.textContent=p.dur;
+    gradius.value=p.radius; gradiusv.textContent=p.radius;
+    const s=DATA.stops[p.stop]; const c=(p.lat!=null&&p.lng!=null)?[p.lat,p.lng]:(s?[s.lat,s.lng]:toWgs(32.06,118.79));
+    createEvent(c[0],c[1],readParams(),b.dataset.preset);
+  };
+});
+const gplace=document.getElementById('gplace'),ghint=document.getElementById('ghint');
+gplace.onclick=()=>{ armed=!armed; gplace.classList.toggle('armed',armed);
+  gplace.textContent=armed?'📍 点击地图放置…（再点取消）':'📍 点击地图放置活动';
+  setCursor(armed?'crosshair':'');
+  ghint.textContent=armed?'在地图上点击活动位置（场馆/散场点），客流自最近站点向周边扩散。':'选预设或调参后点「放置」，再点地图任意位置；客流自最近站点向周边数站扩散，并按线路分担（含换乘外溢）。';
+};
+map.on('click',e=>{ if(!armed||!GOD)return; const w=toWgs(e.latlng.lat,e.latlng.lng);
+  createEvent(w[0],w[1],readParams(),null);
+  armed=false; gplace.classList.remove('armed'); gplace.textContent='📍 点击地图放置活动'; setCursor('');
+});
+// Inject a crowd at (lat,lng): spread spatially to nearby stops (stopW, sum=1) and
+// across every route serving each stop (routeShare, sum=1 per stop → transfer spillover).
+// sched[nm][rid] caches the scheduled pass-times in the window so eventBoard can conserve
+// the crowd across departures. Deterministic given the schedule + params.
+function createEvent(lat,lng,p,preset){
+  const ds=Object.keys(DATA.stops).map(nm=>[nm,distM([lat,lng],[DATA.stops[nm].lat,DATA.stops[nm].lng])]);
+  ds.sort((a,b)=>a[1]-b[1]);
+  let use=ds.filter(d=>d[1]<=p.radius); if(!use.length)use=[ds[0]];
+  const stopW={}; let tot=0;
+  for(const [nm,d] of use){ const w=Math.pow(Math.max(0.05,1-d/p.radius),2); stopW[nm]=w; tot+=w; }
+  for(const nm in stopW) stopW[nm]/=tot;
+  const routeShare={},sched={};
+  for(const nm in stopW){
+    const rids=Object.keys(DATA.stops[nm].routes);
+    routeShare[nm]={}; sched[nm]={};
+    let rt=0; const rw={};
+    for(const rid of rids){ const arr=[];
+      for(const di of DATA.stops[nm].routes[rid]){ const v=SCHED.dirs[rid+'|'+di]; if(!v)continue; const idx=stopIdx(rid,di,nm); if(idx<0)continue;
+        for(let k=0;k<v.deps.length;k++){ const pass=v.deps[k]+v.stopT[idx]; if(pass>=p.tStart&&pass<=p.tStart+p.dur)arr.push(pass); } }
+      sched[nm][rid]=arr; const w=capacity(rid)*(1+arr.length); rw[rid]=w; rt+=w;
+    }
+    for(const rid in rw) routeShare[nm][rid]=rt>0?rw[rid]/rt:0;
+  }
+  const ev={id:++EVENT_SEQ,crowd:p.crowd,tStart:p.tStart,dur:p.dur,radius:p.radius,lat,lng,stopW,routeShare,sched,
+    preset:preset||null,label:(preset?PRESETS[preset].label:'自定义活动')+' · '+ds[0][0]};
+  EVENTS.push(ev); EVENT_VER++; paxCache.clear();
+  renderEvents(); dirty=true; renderSim(); renderBoard(); if(flash)updateFlash();
+  if(preset==='concert')unlock('concert');
+  showToast('🪄 已注入 '+p.crowd+' 人客流于 '+ds[0][0]+' 周边');
+  return ev;
+}
+function renderEvents(){
+  const box=document.getElementById('gevents'); if(!box)return;
+  if(!EVENTS.length){ box.innerHTML='<span class="gempty">暂无活动</span>'; return; }
+  box.innerHTML=EVENTS.map(ev=>'<div class="gev"><span>'+ev.label+' · '+ev.crowd+'人 · '+fmtT(ev.tStart)+'</span><button data-ev="'+ev.id+'" title="移除">✕</button></div>').join('');
+  box.querySelectorAll('button[data-ev]').forEach(b=>b.onclick=()=>{ const id=+b.dataset.ev; EVENTS=EVENTS.filter(e=>e.id!==id); EVENT_VER++; paxCache.clear(); renderEvents(); dirty=true; renderSim(); renderBoard(); if(flash)updateFlash(); });
+}
+document.getElementById('gclear').onclick=()=>{ EVENTS=[]; EVENT_VER++; paxCache.clear(); autoDone.clear(); renderEvents(); dirty=true; renderSim(); renderBoard(); if(flash)updateFlash(); };
+const groute=document.getElementById('groute'),gdir=document.getElementById('gdir'),gstop=document.getElementById('gstop');
+function fillGodRoutes(){
+  groute.innerHTML=DATA.routes.map(r=>'<option value="'+r.id+'">'+r.label+'</option>').join('');
+  fillGodDirs();
+}
+function fillGodDirs(){
+  const r=DATA.routes.find(x=>x.id===groute.value)||DATA.routes[0];
+  gdir.innerHTML=r.dirs.map((d,di)=>'<option value="'+di+'">'+(r.id==='Y33'?(di===0?'内圈':'外圈'):d.from+'→'+d.to)+'</option>').join('');
+  fillGodStops();
+}
+function fillGodStops(){
+  const r=DATA.routes.find(x=>x.id===groute.value)||DATA.routes[0]; const di=+gdir.value||0;
+  gstop.innerHTML=r.dirs[di].stops.map((s,i)=>'<option value="'+i+'">'+s+'</option>').join('');
+}
+groute.onchange=fillGodDirs; gdir.onchange=fillGodStops;
+document.getElementById('gadd').onclick=()=>{
+  if(!GOD)return;
+  const rid=groute.value,di=+gdir.value,fromIdx=+gstop.value;
+  const dep=parseClock(document.getElementById('gdeptime').value); if(dep==null){showToast('请输入有效发车时刻');return;}
+  addExtra(rid,di,dep,fromIdx,null);
+  showToast('🚌 已从 '+DATA.routes.find(x=>x.id===rid).dirs[di].stops[fromIdx]+' 加开一班车');
+};
+document.querySelectorAll('.gdepquick button').forEach(b=>{
+  b.onclick=()=>{ const el=document.getElementById('gdeptime'); if(el)el.value=clockInput(SIM.t+(+b.dataset.off||0)); };
+});
+// Synthetic direction sliced to start at fromIdx. God mode starts at the crowded stop;
+// realistic auto-dispatch starts at the origin and expresses (飞站) up to the crowded stop.
+function makeExtraV(rid,di,fromIdx){
+  const base=SCHED.dirs[rid+'|'+di];
+  const off=base.stopT[fromIdx],km0=base.stopKm[fromIdx];
+  const f=[];
+  for(const fr of base.frames) if(fr[0]>=off-1e-9) f.push([+(fr[0]-off).toFixed(4),fr[1],fr[2],fr[3],+(fr[4]-km0).toFixed(4)]);
+  if(!f.length){ const g=base.frames[base.frames.length-1]; f.push([0,g[1],g[2],g[3],0]); }
+  if(f[0][0]>1e-6) f.unshift([0,f[0][1],f[0][2],f[0][3],0]);
+  const names=DATA.routes.find(x=>x.id===rid).dirs[di].stops.slice(fromIdx);
+  return {frames:f,stopT:base.stopT.slice(fromIdx).map(s=>+(s-off).toFixed(4)),stopKm:base.stopKm.slice(fromIdx).map(s=>+(s-km0).toFixed(4)),deps:[0],run:+(base.run-off).toFixed(4),skip:[],names};
+}
+function addExtra(rid,di,dep,fromIdx,expressTo){
+  if(EXTRA_DEPS.length>=24){ showToast('加车数量已达上限'); return null; }
+  const v=makeExtraV(rid,di,fromIdx);
+  if(expressTo!=null&&expressTo>fromIdx){ for(let i=fromIdx;i<expressTo;i++) v.skip.push({i:i-fromIdx,from:-1e9,to:1e9}); }
+  const id=++EXTRA_SEQ, key=rid+'|'+di+'|x'+id;
+  v.deps=[dep];
+  const e={id,rid,di,dep,fromIdx,key,v,expressTo:expressTo==null?null:expressTo};
+  EXTRA_DEPS.push(e); paxCache.clear();
+  unlock('dispatcher');
+  dirty=true; renderSim(); renderBoard(); if(flash)updateFlash();
+  return e;
+}
+// Realistic auto-dispatch: a scheduled bus >=90% full triggers an express extra from the
+// origin that skips up to the crowded stop. Only fires under heavy crowding (injected
+// events), never in plain sparse night service. One extra per source departure.
+function autoDispatch(t,active){
+  if(EXTRA_DEPS.length>=24)return;
+  const thr=GOD?0.75:0.90;
+  for(const key of active){
+    if(key.indexOf('|x')>=0||autoDone.has(key))continue;
+    const parts=key.split('|'),rid=parts[0],di=+parts[1],k=+parts[2];
+    const v=SCHED.dirs[rid+'|'+di]; if(!v)continue;
+    const plan=planFor(v,rid+'|'+di,k); if(!plan||!plan.real)continue;
+    const el=t-v.deps[k]; if(el<0)continue;
+    const pax=paxPlan(v,rid+'|'+di,k,plan);
+    const occ=occAt(v,plan,pax,el);
+    if(occ/pax.cap>=thr){
+      const st=plan.st; let i=0; while(i<st.length-1&&st[i+1]<=el)i++;
+      if(i>0){
+        if(GOD){ addExtra(rid,di,+t.toFixed(2),i,null); focusGodRoute(rid,di,i,t); }
+        else { addExtra(rid,di,+(t+1).toFixed(2),0,i); }
+        autoDone.add(key);
+      }
+    }
+  }
+}
+unlock('welcome');
+
 build();
 applyFilter();
 homeView();
