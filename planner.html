@@ -141,6 +141,8 @@
  #godbtn{color:#f0abfc}
  #godbtn.on{background:#3b1d47;border-color:#a855f7;color:#f5d0fe}
  #godbtn:disabled{opacity:.38;cursor:default}
+#simbar #planbtn{color:#ffd97a;border-color:#6b5aa8;background:#241a4a;font-weight:600}
+#simbar #planbtn:hover{background:#33255f;color:#ffe9a8}
  #godpanel{position:fixed;left:14px;bottom:74px;width:300px;max-height:70vh;overflow:auto;z-index:1200;background:#0e1430f2;border:1px solid #a855f7;border-radius:12px;box-shadow:0 14px 50px rgba(0,0,0,.6);backdrop-filter:blur(6px);font-size:12px;color:#c7d0ee}
  .ghead{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-bottom:1px solid #2a2347;position:sticky;top:0;background:#0e1430}
  .gtitle{font-weight:700;color:#f5d0fe}
@@ -344,6 +346,7 @@
  <button id="modebtn" title="当前：理论模式（图定时刻表）">🌙 理论模式</button>
  <button id="daybtn" title="现实模式客流日型（仅影响现实模式停站需求）" disabled>🗓 工作日</button>
  <button id="godbtn" title="金手指模式：注入活动客流、加车调度（基于现实模式）" disabled>🪄 金手指</button>
+ <button id="planbtn" title="打开换乘规划页（planner.html）：给定两站与时刻，给出换乘方案并回放">🧭 换乘规划</button>
  <button id="fsbtn" title="全屏显示">⛶ 全屏</button>
  <span id="clock">--:--</span>
  <input id="scrub" type="range" title="拖动进度条">
@@ -533,12 +536,12 @@
    </div>
    <div class="hsec">
     <h3>换乘规划（乘客视角）</h3>
-    <p>本页是<b>宏观俯瞰</b>全城；另有一张独立页面 <a href="planner.html" target="_blank" rel="noopener" style="color:#ffd97a">🧭 换乘规划（planner.html）→</a>，回到<b>一名乘客</b>的视角：给定出发站、目的站与出发时刻，给出具体换乘方案并<b>回放完整运转</b>。它复用本页的<b>现实模式</b>引擎（同一套时刻表与逐班次随机扰动），故规划出的到站时刻与本页模拟<b>完全一致</b>。</p>
+    <p>本页是<b>宏观俯瞰</b>全城；另有一张独立页面 <a href="planner.html" target="_blank" rel="noopener" style="color:#ffd97a">🧭 换乘规划（planner.html）→</a>（底部工具栏 <b>🧭 换乘规划</b> 按钮亦可一键直达），回到<b>一名乘客</b>的视角：给定出发站、目的站与出发时刻，给出具体换乘方案并<b>回放完整运转</b>。它复用本页的<b>现实模式</b>引擎（同一套时刻表与逐班次随机扰动），故规划出的到站时刻与本页模拟<b>完全一致</b>。</p>
     <p>规划页可调：最长步行（按直线距离 ÷ 4.5 km/h 估算，默认 15 分）、最长换乘候车（默认 30 分）、最长全程（默认 150 分）、换乘站偏好（<b>最快到达 / 大站枢纽 / 共线首站</b>），以及「<b>赌一把</b>」紧换乘（赌后车趁前车等灯追上，有错过风险）。方案含每段<b>拥挤度</b>、票价（¥2/程）、步行距离与<b>末班车</b>提示；某方向末班已收车时该换乘自动判为不可行。选中后<b>仅高亮所乘线路</b>（其余淡出），乘客标记按 步行→候车→乘车→到达 实时移动，进度条可逐帧拖动。</p>
    </div>
    <div class="hsec">
     <h3>隐藏成就彩蛋</h3>
-    <p>本站藏有一个仿 Steam 的<b>成就页</b>，记录你的探索（首次打开、切现实模式、节假日人潮、金手指上手、奥体演唱会、挤爆啦、加车调度、深夜守望、时光飞逝、跑完全程）。成就自动保存在本浏览器。</p>
+    <p>本站藏有一个仿 Steam 的<b>成就页</b>，记录你的探索（首次打开、切现实模式、节假日人潮、金手指上手、<b>各类活动散场彩蛋</b>——演唱会/赛事/青奥/音乐节/灯会、挤爆啦、加车调度、深夜守望、时光飞逝、跑完全程）。成就自动保存在本浏览器。</p>
     <p>开启方式被刻意<b>藏了起来</b>，这里不再明说。线索有二：其一，入口就在侧栏<b>最上方那行标题</b>上，对它<b>多点几下</b>、手快些；其二，键盘党可留意 <b>Ctrl + Shift</b> 再搭一个字母的三键组合。找到时会有提示弹出。</p>
    </div>
    <div class="hsec">
@@ -1256,6 +1259,7 @@ function refreshBarLabels(){
   if (fsbtn) fsbtn.textContent = fsLabel();
   const st = document.getElementById('sidetoggle'); if (st) st.textContent = isNarrow() ? '☰' : '☰ 线路';
   const gb = document.getElementById('godbtn'); if (gb) gb.textContent = isNarrow() ? '🪄' : '🪄 金手指';
+  const pb = document.getElementById('planbtn'); if (pb) pb.textContent = isNarrow() ? '🧭' : '🧭 换乘规划';
 }
 const playBtn = document.getElementById('play');
 const scrub = document.getElementById('scrub');
@@ -1973,6 +1977,11 @@ const ACH = [
   {id:'holiday', icon:'🏮', name:'灯会人潮', desc:'切换到节假日客流日型'},
   {id:'godmode', icon:'🪄', name:'金手指上手', desc:'首次开启金手指调度台'},
   {id:'concert', icon:'🎤', name:'比歌声更快', desc:'在金手指模式下于奥体中心模拟演唱会散场'},
+  {id:'sports', icon:'⚽', name:'世界波', desc:'在金手指模式下模拟体育赛事（苏超等）散场'},
+  {id:'qingao', icon:'🌟', name:'青春不散场', desc:'在金手指模式下于青奥村模拟演唱会散场'},
+  {id:'festival', icon:'🎸', name:'天生我材', desc:'在金手指模式下于溧水天生桥模拟咪豆音乐节散场'},
+  {id:'lantern', icon:'🏮', name:'秦淮一梦', desc:'在金手指模式下于夫子庙·白鹭洲模拟秦淮灯会散场'},
+  {id:'laomendong', icon:'🏯', name:'城南旧事', desc:'在金手指模式下于中华门城堡模拟老门东灯会散场'},
   {id:'full', icon:'🚇', name:'挤爆啦！', desc:'模拟拥挤程度达到 100%'},
   {id:'dispatcher', icon:'🚌', name:'调度有方', desc:'首次加开一班车'},
   {id:'nightowl', icon:'🦉', name:'深夜守望', desc:'模拟时间进入凌晨 02:00–04:00'},
@@ -2049,6 +2058,7 @@ function setGod(on){
 }
 godbtn.onclick=()=>{ if(godbtn.disabled)return; setGod(!GOD); };
 document.getElementById('godclose').onclick=()=>setGod(false);
+const planbtn=document.getElementById('planbtn'); if(planbtn)planbtn.onclick=()=>{ location.href='planner.html'; };
 const gcrowd=document.getElementById('gcrowd'),gcrowdv=document.getElementById('gcrowdv');
 const gdur=document.getElementById('gdur'),gdurv=document.getElementById('gdurv');
 const gradius=document.getElementById('gradius'),gradiusv=document.getElementById('gradiusv');
@@ -2103,7 +2113,7 @@ function createEvent(lat,lng,p,preset){
     preset:preset||null,label:(preset?PRESETS[preset].label:'自定义活动')+' · '+ds[0][0]};
   EVENTS.push(ev); EVENT_VER++; paxCache.clear();
   renderEvents(); dirty=true; renderSim(); renderBoard(); if(flash)updateFlash();
-  if(preset==='concert')unlock('concert');
+  if(preset)unlock(preset);
   showToast('🪄 已注入 '+p.crowd+' 人客流于 '+ds[0][0]+' 周边');
   return ev;
 }

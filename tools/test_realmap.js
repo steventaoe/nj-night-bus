@@ -751,5 +751,19 @@ ok(HTML.indexOf('planner.html') >= 0 && HTML.indexOf('换乘规划') >= 0, 'help
 ok(HTML.indexOf('连续点击侧栏标题') < 0 && HTML.indexOf('连续快速点击侧栏标题') < 0, 'achievement entry no longer explicitly stated in docs');
 ok(HTML.indexOf('藏了起来') >= 0, 'achievement help gives a hint instead of the exact method');
 
+// 37. explicit on-page planner jump button + one achievement per event preset
+ok(HTML.indexOf('id="planbtn"') >= 0 && HTML.indexOf('🧭 换乘规划') >= 0, 'simbar carries an explicit 🧭 换乘规划 jump button');
+ok(T.ACH.length >= 15, '>=15 achievements defined (10 base + 5 new event presets), got ' + T.ACH.length);
+const evIds = ['concert', 'sports', 'qingao', 'festival', 'lantern', 'laomendong'];
+ok(evIds.every(id => T.ACH.some(a => a.id === id)), 'every event preset id has a matching achievement');
+T.setReal(true); byId['godbtn'].onclick();
+for (const p of ['sports', 'qingao', 'festival', 'lantern', 'laomendong']) {
+  const btn = presetBtns.find(b => b.dataset.preset === p);
+  btn.onclick();
+  const nm = (T.ACH.find(a => a.id === p) || {}).name;
+  ok(!!T.achGot[p], p + ' preset unlocks its achievement「' + nm + '」');
+}
+byId['gclear'].onclick(); T.EXTRA_DEPS.length = 0; byId['godbtn'].onclick(); T.setReal(false);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
