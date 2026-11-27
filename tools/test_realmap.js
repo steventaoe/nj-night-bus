@@ -745,5 +745,11 @@ ok(T.groute.value === fr && T.gstop.value === '2', 'focusGodRoute jumps manual f
 ok(T.parseClock(byId['gdeptime'].value) <= T.SIM.t + 1, 'auto-relief departure is no later than current sim time');
 byId['gclear'].onclick(); T.EXTRA_DEPS.length = 0; byId['godbtn'].onclick(); T.setReal(false);
 
+// 36. in-page help documents the planner; achievement entry hinted (not spelled out)
+const HTML = fs.readFileSync('D:/nj_night_bus/realmap.html', 'utf8');
+ok(HTML.indexOf('planner.html') >= 0 && HTML.indexOf('换乘规划') >= 0, 'help documents & links the planner page');
+ok(HTML.indexOf('连续点击侧栏标题') < 0 && HTML.indexOf('连续快速点击侧栏标题') < 0, 'achievement entry no longer explicitly stated in docs');
+ok(HTML.indexOf('藏了起来') >= 0, 'achievement help gives a hint instead of the exact method');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
