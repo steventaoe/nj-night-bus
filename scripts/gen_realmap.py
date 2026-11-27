@@ -68,6 +68,11 @@ payload = {'asof': net['asof'], 'routes': routes_js, 'stops': stops_js}
 js = json.dumps(payload, ensure_ascii=False, separators=(',', ':'))
 sched = json.load(open(os.path.join(ROOT, 'data', 'schedule.json'), encoding='utf-8'))
 sched_js = json.dumps(sched, ensure_ascii=False, separators=(',', ':'))
+# Metro adjacency substrate (station->lines) + day-type operating-hour envelope.
+# Built from 南京地铁 official/本地宝 timetables; see README 停站时间模型.
+metro = json.load(open(os.path.join(ROOT, 'data', 'metro.json'), encoding='utf-8'))
+metro_stations_js = json.dumps(metro['stations'], ensure_ascii=False, separators=(',', ':'))
+metro_hours_js = json.dumps(metro['hours'], ensure_ascii=False, separators=(',', ':'))
 
 # ---- speedometer gauge (static SVG, needle driven by JS) ----
 GEARS = [1/6, 1/3, 0.5, 1, 5, 15, 20, 30, 60, 120]
@@ -76,7 +81,7 @@ GCX, GCY, GR = 66, 70, 56
 GA0, GA1 = 195.0, -15.0
 GSPAN = GA0 - GA1
 GLEN = GR * math.radians(GSPAN)
-GDEF = 7  # default gear: 30 min/s
+GDEF = 3  # default gear: 1 min/s
 
 def gp(a, rr):
     return (GCX + rr * math.cos(math.radians(a)), GCY - rr * math.sin(math.radians(a)))
@@ -175,6 +180,9 @@ html = '''<!DOCTYPE html>
  #speedbtn.on{background:#3d3212;border-color:#8a6d3b}
  #modebtn{color:#9fd0ff;font-family:Consolas,'Courier New',monospace}
  #modebtn.real{background:#12303d;border-color:#3b7d8a;color:#7fe3ff}
+ #daybtn{color:#c9b6ff;font-family:Consolas,'Courier New',monospace}
+ #daybtn.on{background:#2a2347;border-color:#6b5b95;color:#e3d6ff}
+ #daybtn:disabled{opacity:.38;cursor:default}
  #fsbtn{color:#c6d2f2}
  #fsbtn.on{background:#12303d;border-color:#3b7d8a;color:#7fe3ff}
  #sidetoggle{display:none}
@@ -349,6 +357,7 @@ html = '''<!DOCTYPE html>
  <button id="play">▶ 播放</button>
  <button id="speedbtn" title="呼出速度调节盘">⏱ 1分/秒 ▴</button>
  <button id="modebtn" title="当前：理论模式（图定时刻表）">🌙 理论模式</button>
+ <button id="daybtn" title="现实模式客流日型（仅影响现实模式停站需求）" disabled>🗓 工作日</button>
  <button id="fsbtn" title="全屏显示">⛶ 全屏</button>
  <span id="clock">--:--</span>
  <input id="scrub" type="range" title="拖动进度条">
@@ -470,8 +479,14 @@ html = '''<!DOCTYPE html>
    <div class="hsec">
     <h3>理论模式 / 现实模式</h3>
     <p>底部 <b>🌙 理论模式</b> 按钮可一键切换两种模拟。<b>理论模式</b>严格按图定时刻表与旅速模型运行，结果可复现，用于对照；<b>现实模式</b>为每班车叠加<b>确定性随机扰动</b>（按班次固定随机种子，拖动进度条往返结果完全一致）。</p>
-    <p>现实模式包含五类效应：① 在推断的信号灯路口随机遇到<b>绿灯/闪黄通过</b>或<b>红灯等待</b>；② <b>停站时长随机</b>——夜间客流稀少时多数站仅"稍减速完成开关门"即走，景区/饭店/换乘大站停留更久；③ <b>发车随机延误</b> 0–3 分钟（绝不早发）；④ 跨凌晨/晚高峰（约 06:00 后、17–19 时）的班次随机遭遇<b>堵车降速</b>；⑤ 每次停站/等灯后的<b>起步加减速</b>使速度不均匀。</p>
+    <p>现实模式包含五类效应：① 在推断的信号灯路口随机遇到<b>绿灯/闪黄通过</b>或<b>红灯等待</b>；② <b>停站时长随机</b>——夜间客流稀少时多数站仅"稍减速完成开关门"即走，景区/饭店/换乘大站停留更久（并按<b>客流日型</b>与<b>地铁接驳</b>微调，详见下节）；③ <b>发车随机延误</b> 0–3 分钟（绝不早发）；④ 跨凌晨/晚高峰（约 06:00 后、17–19 时）的班次随机遭遇<b>堵车降速</b>；⑤ 每次停站/等灯后的<b>起步加减速</b>使速度不均匀。</p>
     <p>信号灯位置由线路几何<b>推断</b>（城市段每约 0.55 km 或明显转弯处设一处，高速/过江等无站区段不设灯），并非逐一实地调研；如需精确可接入真实信号数据。现实模式下大屏/弹窗/闪灯图显示的时刻均为该车次的实际（含延误）时刻。</p>
+   </div>
+   <div class="hsec">
+    <h3>客流日型与地铁接驳</h3>
+    <p>现实模式下底部 <b>🗓 工作日 / 周末 / 节假日</b> 按钮可切换客流日型（理论模式下禁用）。日型影响两方面：① <b>线路客流</b>——夫子庙/新街口/奥体等夜生活·景区线（Y1/Y2/Y7）周末、节假日（灯会/国庆）客流显著放大，工作日偏空；铁路·地铁接驳线（Y3/Y8/Y13/Y16/Y23/Y34/SS1/SS2）平日稀疏，春运/五一返程高峰放大（注：春节假期本身反而近空）；其余普通线节假日略降。② <b>地铁运营时刻</b>——工作日城区末班约 23:30、周五周六延时约 00:15、节假日约 00:45（南京南可达 01:00），首班约 05:45。</p>
+    <p>对<b>地铁沿线/可近距离换乘的站点</b>（按站名匹配南京地铁 263 站，约 250 个公交站命中），停站需求随时段微调：<b>地铁运营中</b>二者争抢客流，公交停站偏短（×0.7）；<b>末班地铁刚结束</b>后约 90 分钟内，末班地铁客流涌入接驳换乘，停站显著加长（峰值约 1.8×，随时间衰减）；深夜地铁停运且接驳潮退去后回归常态。日型越晚收班，接驳高峰越后移。S 线（宁天/宁溧/宁高/机场等）收班更早，接驳潮相应提前。</p>
+    <p>站名匹配为<b>近似</b>（与信号灯几何推断同理），并非逐一实地测距；如需精确可接入真实站点坐标/OD 客流。模型预留了客流模拟接口 <code>setFlowModel(fn)</code>：注入 <code>fn(站名, 线路, 到站时刻, 日型)→负载</code> 即可用实测客流覆盖参数化需求。</p>
    </div>
    <div class="hsec">
     <h3>守时公交与线路备注</h3>
@@ -628,16 +643,49 @@ const REAL_CFG = {
   pQuickBase: 0.42, pQuickSlope: 0.45, pBusyBase: 0.12, pBusyExp: 1.3, busyCap: 0.72,
   hubMul: 1.9, hubBusyMul: 1.35, majorMul: 1.35, majorRoutes: 4, nightMul: 1.55, hospMul: 1.3,
   originMul: 1.2, endMul: 0.8, loadMin: 0.15, loadMax: 3.0,
+  // metro interaction at metro-adjacent stops: competition while metro runs,
+  // feeder surge right after the last train (see metroW / METRO_HOURS).
+  metroComp: 0.70, metroFeederPeak: 1.80,
   todPts: [[0,1.40],[60,1.35],[90,1.10],[150,0.60],[240,0.45],[300,0.90],[360,1.20],[460,1.00],[720,1.00],[1080,1.00],[1260,1.10],[1380,1.30],[1440,1.40]]
 };
-// Per-route ridership weight (1.0 = baseline). Tiers distilled from the few hard
-// counts (Y16 peak ~28-30 pax; SS1 双节 95% 上座率), journalist ride-alongs (Y13
-// 最热闹 / 年前趟趟爆满; Y1 crowded till ~01:30), timetable frequency as a demand
-// proxy (Y26/Y28/Y38/Y39 only 3-4 runs a night), and the 2024-25 线网整合 that
-// culled the emptiest lines. Routes with no evidence default to 1.0.
+// ---- metro adjacency + day-type operating hours (data/metro.json) ----
+// METRO_STATIONS: base station name -> comma-joined line codes (urban then S).
+// METRO_HOURS[dayType]: first = morning resumption (05:45⁺¹), close = last train
+// passing central stations (absolute night-service minutes), feeder = surge-window
+// length (min), sOffset = S-lines close earlier than the urban envelope.
+const METRO_STATIONS = __METRO_STATIONS__;
+const METRO_HOURS = __METRO_HOURS__;
+// Day-type ridership classes. tourist = 夫子庙/新街口/奥体 nightlife & scenic lines
+// (weekend/holiday spikes); feeder = railway/metro接驳 & residential lines (ordinary
+// sparse, 春运/五一返程 peaks, but empty during 春节假期本身); local = everything else.
+const DAY_CLASS = {
+  tourist: ['Y1','Y2','Y7'],
+  feeder: ['Y3','Y8','Y13','Y16','Y23','Y34','SS1','SS2']
+};
+const DAY_CLS = {}; for (const c in DAY_CLASS) for (const r of DAY_CLASS[c]) DAY_CLS[r] = c;
+function dayClass(rid){ return DAY_CLS[rid] || 'local'; }
+// Multiplier on the ordinary-weekday baseline routeW. Weekday is the corrected
+// ordinary period; weekend/holiday boost tourist & feeder demand (evidence in README).
+const DAY_MUL = {
+  weekday: {tourist:1.00, feeder:1.00, local:1.00},
+  weekend: {tourist:1.25, feeder:1.05, local:0.97},
+  holiday: {tourist:1.70, feeder:1.35, local:0.90}
+};
+let DAYTYPE = 'weekday';
+function dayMul(rid, dt){ const m = DAY_MUL[dt] || DAY_MUL.weekday; return m[dayClass(rid)]; }
+// Per-route ridership weight (1.0 = baseline), representing the ORDINARY weekday.
+// Tiers distilled from hard counts (Y16 peak ~28-30 pax at the 21-22h / 05-06h
+// commuter edges, ordinary Sept-2020 week), journalist ride-alongs, timetable
+// frequency as a demand proxy (Y26/Y28/Y38/Y39 only 3-4 runs a night), and the
+// 2024-25 线网整合 that culled the emptiest lines. Routes with no evidence: 1.0.
+// Holiday-provenance correction (2026-11): Y13 "年前趟趟爆满" was a 春运 peak and
+// SS1 "95% 上座率" was 国庆中秋双节 only — both reduced toward ordinary levels
+// (Y13 2.0->1.3, SS1 1.5->1.1); Y1 "拥挤到01:30" was stale 2006 evidence (1.6->1.3);
+// Y16 deep-night is lighter than its commuter-edge peak (2.0->1.7). Holiday/weekend
+// peaks are now restored by the day-type multiplier (DAY_MUL), not baked in here.
 const ROUTE_W = {
-  Y16: 2.0, Y13: 2.0, SS2: 1.7,
-  Y1: 1.6, Y8: 1.6, Y3: 1.6, SS1: 1.5, Y34: 1.5,
+  Y16: 1.7, Y13: 1.3, SS2: 1.7,
+  Y1: 1.3, Y8: 1.6, Y3: 1.6, SS1: 1.1, Y34: 1.5,
   Y23: 1.3, Y21: 1.3, Y37: 1.3, Y28: 1.3, Y32: 1.3, Y30: 1.2, Y36: 1.2, Y27: 1.15,
   Y4: 0.55, Y7: 0.55, Y11: 0.55, Y22: 0.55, Y29: 0.5, Y31: 0.5, Y33: 0.5, Y35: 0.5,
   Y38: 0.45, Y39: 0.45, Y40: 0.45, Y41: 0.45,
@@ -705,6 +753,66 @@ function todW(m) {
 }
 let REAL = false;
 const realCache = new Map(), lightCache = new Map(), fastCache = new Map();
+// ---- metro adjacency (name-matched against METRO_STATIONS, approximate like the
+// signal inference) ----
+const metroAdjCache = new Map();
+const METRO_EXCL = ['龙蟠路·南京站','鼓楼河西','江北国际医院','溧水中专','宁杭高铁溧水','岔路口（溧水）','泮池园'];
+function metroAdj(nm){
+  if(!nm) return null;
+  if(metroAdjCache.has(nm)) return metroAdjCache.get(nm);
+  let res=null;
+  if(!METRO_EXCL.some(e=>nm.indexOf(e)>=0)){
+    let base=null;
+    const sm=nm.match(/^S\\d+(.+?)站/);
+    if(nm.indexOf('地铁站')>=0){
+      const b=nm.split('地铁站')[0];
+      if(METRO_STATIONS[b]) base=b;
+      else { let bl=0; for(const s in METRO_STATIONS) if(b.length>=s.length && b.slice(-s.length)===s && s.length>bl){ base=s; bl=s.length; } }
+    } else if(sm && METRO_STATIONS[sm[1]]) base=sm[1];
+    if(!base){
+      let bp=1e9,bl=0;
+      for(const s in METRO_STATIONS){
+        let p=nm.indexOf(s);
+        while(p>=0){
+          if(p===0||nm[p-1]==='·'){
+            const after=nm[p+s.length]||'';
+            if(!(s.length===2&&'路街大桥河'.indexOf(after)>=0)){
+              if(p<bp||(p===bp&&s.length>bl)){ base=s; bp=p; bl=s.length; }
+              break;
+            }
+          }
+          p=nm.indexOf(s,p+1);
+        }
+      }
+    }
+    if(base) res={st:base, lines:METRO_STATIONS[base]};
+  }
+  metroAdjCache.set(nm,res);
+  return res;
+}
+// Metro demand modifier at metro-adjacent stops. While the metro runs it competes
+// for passengers (load × metroComp < 1); right after the FIRST serving line closes,
+// the last-metro crowd feeds the night bus (surge up to metroFeederPeak, decaying over
+// the feeder window); deep night returns to 1. Day-type shifts the close time later
+// (weekend/holiday 延时), so the feeder wave moves with it. S-lines close earlier.
+function metroW(nm, clk, dt){
+  const adj=metroAdj(nm); if(!adj) return 1;
+  const H=METRO_HOURS[dt]||METRO_HOURS.weekday;
+  let close=Infinity;
+  for(const l of adj.lines.split(',')){ const c=H.close+(l[0]==='S'?H.sOffset:0); if(c<close) close=c; }
+  if(clk<=close||clk>=H.first) return REAL_CFG.metroComp;
+  const since=clk-close;
+  if(since>0&&since<=H.feeder) return 1+(REAL_CFG.metroFeederPeak-1)*(1-since/H.feeder);
+  return 1;
+}
+// ---- reserved passenger-flow interface ----
+// A future flow model (measured OD / boardings per stop-time-daytype) can be injected
+// via setFlowModel(fn): fn(nm, rid, clk, dayType) -> load number, or null to fall back
+// to the parametric demand below. This is the hook for real 客流模拟; METRO_STATIONS /
+// metroAdj provide the metro-adjacency substrate it would build on.
+let FLOW_MODEL=null;
+function setFlowModel(fn){ FLOW_MODEL=(typeof fn==='function')?fn:null; realCache.clear(); dirty=true; }
+function flowLoad(nm,rid,clk,dt){ try{ return FLOW_MODEL?FLOW_MODEL(nm,rid,clk,dt):null; }catch(e){ return null; } }
 function hashStr(s) { let h = 2166136261 >>> 0; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
 function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 function peakW(m) {
@@ -748,16 +856,18 @@ function buildReal(v, key, k) {
     const pass = depBase + v.stopT[i]; if (pass >= w.from && pass < w.to) sk[i] = true;
   }
   const dwr = new Array(n);
-  const wRoute = routeW(key.split('|')[0]);
+  const rid = key.split('|')[0];
+  const wDay = routeW(rid) * dayMul(rid, DAYTYPE);
   for (let i = 0; i < n; i++) {
     if (sk[i]) { dwr[i] = 0; continue; }
     const nm = names[i];
     const nRoutes = nm && DATA.stops[nm] ? Object.keys(DATA.stops[nm].routes).length : 1;
     const nt = nodeType(nm), major = !nt && nRoutes >= REAL_CFG.majorRoutes;
     const clk = depBase + v.stopT[i];
-    let load = wRoute * todW(clk);
+    let load = wDay * todW(clk) * metroW(nm, clk, DAYTYPE);
     if (nt) load *= nodeMul(nt) * nodeGate(nt, clk); else if (major) load *= REAL_CFG.majorMul;
     if (i === 0) load *= REAL_CFG.originMul; else if (i === n - 1) load *= REAL_CFG.endMul;
+    const fl = flowLoad(nm, rid, clk, DAYTYPE); if (fl != null) load = fl;
     load = Math.max(REAL_CFG.loadMin, Math.min(REAL_CFG.loadMax, load));
     const pBusy = Math.min(REAL_CFG.busyCap, REAL_CFG.pBusyBase * Math.pow(load, REAL_CFG.pBusyExp));
     const pQuick = Math.max(0.05, Math.min(0.92, REAL_CFG.pQuickBase + REAL_CFG.pQuickSlope * (1 - load)));
@@ -849,7 +959,7 @@ function posReal(v, plan, el) {
 }
 function planFor(v, key, k) {
   if (!REAL) return depPlan(v, key, k);
-  const ck = key + '|' + k;
+  const ck = key + '|' + k + '|' + DAYTYPE;
   let p = realCache.get(ck);
   if (!p) { p = buildReal(v, key, k); realCache.set(ck, p); }
   return p;
@@ -915,12 +1025,16 @@ const isNarrow = () => { try { if (window.matchMedia) return window.matchMedia('
 function playLabel(){ return SIM.playing ? (isNarrow() ? '⏸' : '⏸ 暂停') : (isNarrow() ? '▶' : '▶ 播放'); }
 function speedLabel(open){ return (isNarrow() ? '⏱' : '⏱ ' + fmtSpeed(SIM.speed)) + (open ? ' ▾' : ' ▴'); }
 function modeLabel(){ return REAL ? (isNarrow() ? '🌆' : '🌆 现实模式') : (isNarrow() ? '🌙' : '🌙 理论模式'); }
+const DAYTYPES = ['weekday','weekend','holiday'];
+const DAYLAB = {weekday:'工作日',weekend:'周末',holiday:'节假日'};
+function dayLabel(){ return isNarrow() ? '🗓' : '🗓 ' + DAYLAB[DAYTYPE]; }
 function fsLabel(){ return fsActive() ? (isNarrow() ? '🗗' : '🗗 退出全屏') : (isNarrow() ? '⛶' : '⛶ 全屏'); }
 const fsbtn = document.getElementById('fsbtn');
 function refreshBarLabels(){
   playBtn.textContent = playLabel();
   speedbtn.textContent = speedLabel(!speedpanel.hidden);
   modebtn.textContent = modeLabel();
+  const db = document.getElementById('daybtn'); if (db) db.textContent = dayLabel();
   if (fsbtn) fsbtn.textContent = fsLabel();
   const st = document.getElementById('sidetoggle'); if (st) st.textContent = isNarrow() ? '☰' : '☰ 线路';
 }
@@ -1003,12 +1117,25 @@ function setReal(on) {
   modebtn.textContent = modeLabel();
   modebtn.classList.toggle('real', REAL);
   modebtn.title = REAL ? '当前：现实模式（随机延误 / 红绿灯 / 堵车 / 停站波动）' : '当前：理论模式（图定时刻表）';
+  const db = document.getElementById('daybtn');
+  if (db) { db.disabled = !REAL; db.textContent = dayLabel(); db.classList.toggle('on', REAL && DAYTYPE !== 'weekday'); }
   dirty = true;
   renderSim(); renderBoard();
   if (flash) updateFlash();
   if (livePopup) livePopup.p.setContent(livePopup.i.html + nextArrivals(livePopup.i.nm, livePopup.i.st));
 }
 modebtn.onclick = () => setReal(!REAL);
+const daybtn = document.getElementById('daybtn');
+function setDayType(dt) {
+  DAYTYPE = dt; realCache.clear();
+  daybtn.textContent = dayLabel();
+  daybtn.classList.toggle('on', dt !== 'weekday');
+  daybtn.title = '现实模式客流日型：' + DAYLAB[dt] + '（仅影响现实模式停站需求；地铁延时与客流随日型变化）';
+  dirty = true; renderSim(); renderBoard();
+  if (flash) updateFlash();
+  if (livePopup) livePopup.p.setContent(livePopup.i.html + nextArrivals(livePopup.i.nm, livePopup.i.st));
+}
+daybtn.onclick = () => { if (!REAL) return; setDayType(DAYTYPES[(DAYTYPES.indexOf(DAYTYPE) + 1) % DAYTYPES.length]); };
 function fsActive(){ return !!(document.fullscreenElement || document.webkitFullscreenElement); }
 function syncFs(){ if (fsbtn) { fsbtn.textContent = fsLabel(); fsbtn.classList.toggle('on', fsActive()); } }
 function toggleFs(){
@@ -1582,6 +1709,7 @@ def fmt_min(m):
     return f'{pre}{m // 60 % 24:02d}:{m % 60:02d}'
 mdl = sched.get('model', {'v_reg': 24, 'v_art': 33, 'v_fast': 60, 'turn_pen': 0.1, 'dwell': 0.6})
 html = (html.replace('__PAYLOAD__', js).replace('__SCHED__', sched_js)
+        .replace('__METRO_STATIONS__', metro_stations_js).replace('__METRO_HOURS__', metro_hours_js)
         .replace('__GAUGE__', gauge_svg()).replace('__GLEN__', f'{GLEN:.2f}')
         .replace('__NROUTES__', str(nroutes)).replace('__NSTOPS__', str(nstops))
         .replace('__SUBNOTE__', sub_note)

@@ -78,7 +78,9 @@ vm.runInContext(src + '\n;globalThis.__test={SIM,SCHED,DATA,posAt,renderSim,doJu
   'placeFlashBus, flashGeom, openHelp, closeHelp, helpSearch, stopScale, paintStops, STOP_R, STOP_W,' +
   'get REAL(){return REAL}, setReal, planFor, buildReal, posReal, REAL_CFG, dirLights, peakW, hashStr, mulberry32,' +
   'isNarrow, playLabel, speedLabel, modeLabel, fsLabel, fsActive, refreshBarLabels, applyNarrowBoard,' +
-  'routeW, isHub, todW, ROUTE_W, nodeType, nodeMul, nodeGate, NODE_GATE_PTS};',
+  'routeW, isHub, todW, ROUTE_W, nodeType, nodeMul, nodeGate, NODE_GATE_PTS,' +
+  'metroAdj, metroW, dayMul, dayClass, DAY_MUL, DAY_CLASS, METRO_STATIONS, METRO_HOURS, setFlowModel, flowLoad,' +
+  'setDayType, dayLabel, daybtn, modebtn, get DAYTYPE(){return DAYTYPE}, set DAYTYPE(v){DAYTYPE=v}};',
   ctx, { timeout: 30000 });
 const T = ctx.__test || (ctx.globalThis && ctx.globalThis.__test);
 let pass = 0, fail = 0;
@@ -430,7 +432,7 @@ ctx.window.innerWidth = 1400;
 
 // 20. dwell demand recalibration (per-route weight / typed nodes / hour gates / time-of-night / transfer decoupling)
 ok(typeof T.routeW === 'function' && typeof T.isHub === 'function' && typeof T.todW === 'function' && typeof T.nodeType === 'function' && typeof T.nodeGate === 'function', 'dwell demand helpers defined');
-ok(T.routeW('Y16') === 2.0 && T.routeW('Y13') === 2.0, 'railway-hub trunk routes weighted 2.0');
+ok(T.routeW('Y16') === 1.7 && T.routeW('Y13') === 1.3 && T.routeW('SS1') === 1.1, 'holiday-inflated weights corrected toward ordinary (Y16 1.7 / Y13 1.3 / SS1 1.1)');
 ok(T.routeW('Y39') < 0.5 && T.routeW('Y38') < 0.5, 'near-empty routes weighted < 0.5');
 ok(T.routeW('Y2') === 1.0 && T.routeW('__none__') === 1.0, 'routes without evidence default to 1.0');
 ok(T.nodeType('南京站·南广场西') === 'rail' && T.nodeType('南京站·南广场东') === 'rail', '南京站·南广场 (station square) classified rail');
@@ -495,6 +497,76 @@ for (const key of Object.keys(T.SCHED.dirs)) {
 }
 ok(maxFinReal <= T.SCHED.end, 'realistic max finish ' + maxFinReal.toFixed(1) + ' (' + argFin + ') <= SCHED.end ' + T.SCHED.end);
 ok(T.SCHED.end >= 1950, 'window end floor >= 08:30 (1950) for realistic headroom, got ' + T.SCHED.end);
+
+// 22. metro adjacency (name-matched, boundary-aware, exclusions)
+ok(typeof T.metroAdj === 'function' && typeof T.metroW === 'function', 'metro helpers defined');
+ok(Object.keys(T.METRO_STATIONS).length > 200 && T.METRO_HOURS.weekday && T.METRO_HOURS.weekend && T.METRO_HOURS.holiday, 'metro station table + per-day-type hours loaded');
+ok(T.metroAdj('新街口') && T.metroAdj('新街口').st === '新街口' && T.metroAdj('新街口').lines === '1,2', '新街口 matched to lines 1,2');
+ok(T.metroAdj('迈皋桥') && T.metroAdj('迈皋桥').lines === '1', '迈皋桥 matched to line 1');
+ok(T.metroAdj('南京南站') && T.metroAdj('南京南站').lines.indexOf('S1') >= 0, '南京南站 matched incl. airport S1');
+ok(T.metroAdj('泰冯路地铁站') && T.metroAdj('泰冯路地铁站').st === '泰冯路', 'explicit 地铁站 suffix form matched');
+ok(T.metroAdj('S8大厂站') && T.metroAdj('S8大厂站').st === '大厂', 'S-number 站 form matched');
+ok(T.metroAdj('大厂·新庄') && T.metroAdj('大厂·新庄').st === '大厂', 'leftmost boundary match prefers 大厂 (S8) over 新庄');
+ok(T.metroAdj('集庆门大街·南湖路') && T.metroAdj('集庆门大街·南湖路').st === '集庆门大街', '集庆门大街 matched to line 2');
+ok(T.metroAdj('龙蟠路·南京站东') === null && T.metroAdj('龙蟠路·南京站西') === null, '龙蟠路·南京站 (~500m from platforms) excluded from metro adjacency');
+ok(T.metroAdj('黑龙江路') === null && T.metroAdj('赛虹桥') === null && T.metroAdj('浦珠中路·万寿路') === null, 'road-suffix / mid-word false positives rejected (黑龙江路≠龙江, 赛虹桥≠虹桥, 万寿路≠万寿)');
+ok(T.metroAdj('南堡公园') === null && T.metroAdj('') === null, 'ordinary non-metro stops return null');
+
+// 23. metro demand modifier: competition while running / feeder surge after close / day-shift / S-line earlier
+const MC = T.REAL_CFG.metroComp, MP = T.REAL_CFG.metroFeederPeak;
+ok(T.metroW('迈皋桥', 20 * 60, 'weekday') === MC, 'metro-adjacent stop competes (×' + MC + ') while the metro runs (20:00)');
+ok(T.metroW('迈皋桥', 1420, 'weekday') > 1.5, 'feeder surge right after weekday close (23:40, last-metro crowd boards the night bus)');
+ok(T.metroW('迈皋桥', 1411, 'weekday') <= MP + 1e-9, 'feeder surge bounded by metroFeederPeak (' + MP + ')');
+ok(T.metroW('迈皋桥', 1600, 'weekday') === 1, 'deep night (02:40) returns to baseline once the feeder wave decays');
+ok(T.metroW('迈皋桥', 1800, 'weekday') === MC, 'early-morning competition resumes once the metro reopens (06:00 >= first)');
+ok(T.metroW('南堡公园', 1420, 'weekday') === 1, 'non-adjacent stop unaffected by metro schedule');
+ok(T.metroW('迈皋桥', 1430, 'weekday') > 1 && T.metroW('迈皋桥', 1430, 'weekend') === MC, 'weekend 延时 shifts close later: 23:50 is feeder on weekday but still competition on weekend');
+ok(T.metroW('迈皋桥', 1470, 'weekend') > 1 && T.metroW('迈皋桥', 1470, 'holiday') === MC, 'holiday close later still: 00:30 feeder on weekend, competition on holiday');
+ok(T.metroW('翠屏山', 1360, 'weekday') > 1 && T.metroW('迈皋桥', 1360, 'weekday') === MC, 'S-line closes earlier (sOffset): 22:40 feeder at S1 翠屏山 while line-1 迈皋桥 still running');
+
+// 24. day-type ridership classes & multipliers
+ok(T.dayClass('Y1') === 'tourist' && T.dayClass('Y16') === 'feeder' && T.dayClass('Y11') === 'local', 'routes classified tourist / feeder / local');
+ok(T.dayMul('Y1', 'weekday') === 1.0 && T.dayMul('Y16', 'weekday') === 1.0 && T.dayMul('Y2', 'weekday') === 1.0, 'weekday is the corrected ordinary baseline (all ×1.0)');
+ok(T.dayMul('Y1', 'weekend') === 1.25 && T.dayMul('Y1', 'holiday') === 1.70, 'tourist lines spike on weekend/holiday (Y1 ×1.25 / ×1.70)');
+ok(T.dayMul('Y16', 'holiday') === 1.35 && T.dayMul('Y16', 'weekend') === 1.05, 'feeder lines rise modestly on weekend/holiday (Y16 ×1.05 / ×1.35)');
+ok(T.dayMul('Y11', 'holiday') === 0.90 && T.dayMul('Y11', 'weekend') === 0.97, 'ordinary local lines dip slightly on weekend/holiday (Y11 ×0.97 / ×0.90)');
+ok(T.DAYTYPE === 'weekday', 'default day-type is weekday');
+
+// 25. day-type cache invalidation, per-day-type determinism, reserved flow hook
+const y1key = Object.keys(T.SCHED.dirs).find(k => k.split('|')[0] === 'Y1');
+const y1v = T.SCHED.dirs[y1key];
+T.DAYTYPE = 'weekday'; T.setFlowModel(null);
+const da = T.buildReal(y1v, y1key, 0), da2 = T.buildReal(y1v, y1key, 0);
+ok(JSON.stringify(da.dwr) === JSON.stringify(da2.dwr), 'same day-type → identical dwell sequence (deterministic per departure)');
+T.DAYTYPE = 'holiday';
+const db = T.buildReal(y1v, y1key, 0);
+ok(JSON.stringify(da.dwr) !== JSON.stringify(db.dwr), 'switching day-type changes tourist-line demand (weekday vs holiday dwell differs)');
+T.DAYTYPE = 'weekday';
+ok(JSON.stringify(T.buildReal(y1v, y1key, 0).dwr) === JSON.stringify(da.dwr), 'switching back to weekday reproduces the original sequence');
+T.setFlowModel((nm, rid, clk, dt) => nm === '新街口' ? 2.5 : null);
+ok(T.flowLoad('新街口', 'Y1', 0, 'weekday') === 2.5 && T.flowLoad('迈皋桥', 'Y1', 0, 'weekday') === null, 'reserved flow hook overrides load at matched stop-time, null elsewhere');
+T.setFlowModel(() => 3.0);
+const df = T.buildReal(y1v, y1key, 0);
+ok(JSON.stringify(df.dwr) !== JSON.stringify(da.dwr), 'injected flow model changes the realised dwell sequence');
+T.setFlowModel(null);
+ok(T.flowLoad('新街口', 'Y1', 0, 'weekday') === null, 'clearing the flow model restores the parametric demand');
+T.DAYTYPE = 'weekday';
+
+// 26. day-type selector UI (disabled in theoretical, cycles in realistic)
+T.setReal(false);
+ok(byId['daybtn'] && byId['daybtn'].disabled === true, 'day-type button disabled in theoretical mode');
+T.setReal(true);
+ok(byId['daybtn'].disabled === false, 'day-type button enabled in realistic mode');
+T.setDayType('weekday');
+byId['daybtn'].onclick();
+ok(T.DAYTYPE === 'weekend', 'day button cycles weekday → weekend');
+byId['daybtn'].onclick();
+ok(T.DAYTYPE === 'holiday', 'day button cycles weekend → holiday');
+byId['daybtn'].onclick();
+ok(T.DAYTYPE === 'weekday', 'day button cycles holiday → weekday');
+T.setDayType('holiday');
+ok(byId['daybtn'].classList.contains('on'), 'non-weekday day-type highlights the button');
+T.setDayType('weekday'); T.setReal(false);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
