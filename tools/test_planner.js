@@ -253,5 +253,13 @@ for (const [O, D] of pairs.slice(0, 3)) for (const it of P.planOD(O, D, T0, opt)
 ok(dtBad === 0, 'weekend day-type itineraries still engine-consistent (bad=' + dtBad + ')');
 ok(P.DAYTYPE === 'weekend', 'setDayType reflected, got ' + P.DAYTYPE);
 
+// 14. UI: instant custom autocomplete replaces the laggy native datalist; map pick-point buttons
+ok(html.indexOf('function acMatch') >= 0, 'custom autocomplete acMatch present (matches on 1st char)');
+ok(html.indexOf("acBox.id='plac'") >= 0, 'autocomplete dropdown element #plac created');
+ok(html.indexOf('list="plstops"') < 0 && html.indexOf('<datalist id=') < 0, 'native datalist removed from the station inputs');
+ok(html.indexOf('compositionend') >= 0 && html.indexOf('isComposing') >= 0, 'autocomplete is IME-aware (compositionend + isComposing guard)');
+ok(html.indexOf('id="pickfrom"') >= 0 && html.indexOf('id="pickto"') >= 0, 'map pick-point buttons for origin & destination');
+ok(html.indexOf('function nearestStop') >= 0 && html.indexOf("map.on('click'") >= 0, 'pick snaps to nearest stop on map click');
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

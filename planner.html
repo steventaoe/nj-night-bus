@@ -306,6 +306,18 @@
  .plchk{display:flex;align-items:center;gap:6px;font-size:12px;color:#9aa4cf;cursor:pointer}
  .plnote{font-size:11px;color:#6f7aa8;line-height:1.5;margin-top:6px}
  .plerr{background:#2a1626;border:1px solid #7c3a5a;color:#f5b8cd;border-radius:8px;padding:8px 10px;font-size:12px;margin-bottom:10px}
+ .plpick{flex:none;width:34px;height:32px;background:#161b3a;border:1px solid #2c3563;color:#c3cbee;border-radius:7px;cursor:pointer;font-size:15px;line-height:1;padding:0}
+ .plpick:hover{background:#243055;color:#ffd97a}
+ .plpick.armed{background:#3a2c66;border-color:#a855f7;color:#fff;box-shadow:0 0 0 1px #a855f755}
+ #plhint{font-size:11px;color:#8b96c4;margin:0 0 8px;line-height:1.4}
+ #plhint:empty{display:none}
+ #plhint b{color:#9fe8c8}
+ #plac{position:fixed;z-index:1400;display:none;max-height:244px;overflow:auto;background:#11173a;border:1px solid #3a2c66;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.55);padding:4px}
+ #plac .acit{padding:6px 9px;border-radius:6px;cursor:pointer;font-size:13px;color:#dfe4ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ #plac .acit:hover,#plac .acit.act{background:#3a2c66;color:#fff}
+ #plac .acit .hl{color:#ffd97a}
+ #plac .acnone{padding:8px 9px;color:#7f8db8;font-size:12px}
+ #plac .acsub{padding:5px 9px 3px;color:#6f7aa8;font-size:10px;border-top:1px solid #2a2347;margin-top:3px}
  .itcard{background:#11173a;border:1px solid #2a2347;border-radius:10px;padding:10px;margin-bottom:9px;cursor:pointer;transition:border-color .12s}
  .itcard:hover{border-color:#5b4b96}
  .itcard.sel{border-color:#a855f7;background:#171d44;box-shadow:0 0 0 1px #a855f755}
@@ -2210,12 +2222,12 @@ renderBoard();
  <div id="plbody">
   <div class="plsec">
    <div class="pllabel">行程</div>
-   <div class="plrow"><label>出发站</label><input id="plfrom" type="text" list="plstops" placeholder="输入站名搜索…"></div>
-   <div class="plrow"><label>目的站</label><input id="plto" type="text" list="plstops" placeholder="输入站名搜索…"></div>
+   <div class="plrow"><label>出发站</label><input id="plfrom" type="text" placeholder="输入站名搜索…" autocomplete="off"><button class="plpick" id="pickfrom" type="button" title="在地图上取点作为出发地（吸附到最近站点）">📍</button></div>
+   <div class="plrow"><label>目的站</label><input id="plto" type="text" placeholder="输入站名搜索…" autocomplete="off"><button class="plpick" id="pickto" type="button" title="在地图上取点作为目的地（吸附到最近站点）">📍</button></div>
+   <div id="plhint"></div>
    <div class="plrow"><label>出发时刻</label><input id="pltime" type="text" value="23:00" placeholder="23:00"><span style="color:#6f7aa8;font-size:11px">00–11 时视为次日</span></div>
    <div class="plrow"><label>客流日型</label><div class="plchips" id="plday" style="flex:1">
      <button data-dt="weekday" class="on">工作日</button><button data-dt="weekend">周末</button><button data-dt="holiday">节假日</button></div></div>
-   <datalist id="plstops"></datalist>
   </div>
   <div class="plsec">
    <div class="pllabel">换乘偏好与阈值</div>
@@ -2557,17 +2569,93 @@ renderBoard();
 
   // ---------- controls ----------
   var PREF='fast';
-  var dl=document.getElementById('plstops'); dl.innerHTML=Object.keys(DATA.stops).sort().map(function(nm){return '<option value="'+nm+'">';}).join('');
+  var STOP_NAMES=Object.keys(DATA.stops).sort();
   document.querySelectorAll('#plday button').forEach(function(b){ b.onclick=function(){ document.querySelectorAll('#plday button').forEach(function(x){x.classList.remove('on');}); b.classList.add('on'); if(typeof setDayType==='function')setDayType(b.dataset.dt); clearArrCache(); if(RESULTS.length)plan(); }; });
   document.querySelectorAll('#plpref button').forEach(function(b){ b.onclick=function(){ document.querySelectorAll('#plpref button').forEach(function(x){x.classList.remove('on');}); b.classList.add('on'); PREF=b.dataset.pf; if(RESULTS.length){ RESULTS=dedupSort(RESULTS.slice(),{pref:PREF}); renderResults(); selectItin(0);} }; });
   function bindRange(id,vid){ var e=document.getElementById(id),v=document.getElementById(vid); e.oninput=function(){ v.textContent=e.value; }; }
   bindRange('plwalk','plwalkv'); bindRange('plwait','plwaitv'); bindRange('pltotal','pltotalv'); bindRange('plgamblemin','plgambleminv');
   document.getElementById('plgamble').onchange=function(e){ document.getElementById('plgamblerow').style.display=e.target.checked?'flex':'none'; };
   document.getElementById('plgo').onclick=plan;
-  document.getElementById('plreset').onclick=function(){ document.getElementById('plres').innerHTML=''; document.getElementById('plmsg').innerHTML=''; RESULTS=[];SEL=-1; stopPlayback(); clearHighlight(); if(jmark){try{map.removeLayer(jmark);}catch(e){} jmark=null;} };
+  document.getElementById('plreset').onclick=function(){ document.getElementById('plres').innerHTML=''; document.getElementById('plmsg').innerHTML=''; RESULTS=[];SEL=-1; stopPlayback(); clearHighlight(); if(jmark){try{map.removeLayer(jmark);}catch(e){} jmark=null;} if(pickMark){try{map.removeLayer(pickMark);}catch(e){} pickMark=null;} if(typeof disarmPick==='function')disarmPick(); };
   document.getElementById('plpp').onclick=function(){ if(!JT)return; if(JT.t>=JT.itin.end){ JT.t=JT.start; JT.playing=true; document.getElementById('plpp').textContent='⏸ 暂停'; } else { JT.playing=!JT.playing; document.getElementById('plpp').textContent=JT.playing?'⏸ 暂停':'▶ 播放'; } };
   document.getElementById('plspeed').onchange=function(e){ if(JT)JT.speed=+e.target.value; };
   document.getElementById('plscrub').oninput=function(e){ if(!JT)return; var it=JT.itin; JT.t=it.start+(it.end-it.start)*(+e.target.value/1000); JT.playing=false; document.getElementById('plpp').textContent='▶ 播放'; renderJourney(); };
+
+  // ---------- station autocomplete (replaces the laggy native <datalist>) ----------
+  var acBox=document.createElement('div'); acBox.id='plac'; document.body.appendChild(acBox);
+  var acInput=null, acItems=[], acIdx=-1;
+  function acMatch(q){
+    q=(q||'').trim();
+    if(!q) return STOP_NAMES.slice(0,40);
+    var pre=[],sub=[];
+    for(var i=0;i<STOP_NAMES.length;i++){ var nm=STOP_NAMES[i];
+      if(nm.indexOf(q)===0) pre.push(nm); else if(nm.indexOf(q)>0) sub.push(nm);
+    }
+    return pre.concat(sub).slice(0,40);
+  }
+  function acRender(){
+    var q=(acInput&&acInput.value||'').trim();
+    acItems=acMatch(q); acIdx=-1;
+    if(!acItems.length){ acBox.innerHTML='<div class="acnone">无匹配站点</div>'; return; }
+    var h='';
+    for(var i=0;i<acItems.length;i++){ var nm=acItems[i];
+      var esc=nm.replace(/&/g,'&amp;').replace(/</g,'&lt;'); var hi=esc;
+      if(q){ var p=nm.indexOf(q); if(p>=0) hi=esc.slice(0,p)+'<span class="hl">'+esc.slice(p,p+q.length)+'</span>'+esc.slice(p+q.length); }
+      h+='<div class="acit" data-nm="'+esc+'">'+hi+'</div>';
+    }
+    h+='<div class="acsub">'+(acItems.length>=40?'仅列前 40 条，继续输入可缩小范围 · ':'')+'↑↓ 选择 · 回车确认</div>';
+    acBox.innerHTML=h;
+    var els=acBox.querySelectorAll('.acit');
+    for(var j=0;j<els.length;j++){ (function(el){ el.onmousedown=function(e){ if(e&&e.preventDefault)e.preventDefault(); acChoose(el.getAttribute('data-nm')); }; })(els[j]); }
+  }
+  function acPosition(){ if(!acInput)return; var r=acInput.getBoundingClientRect(); acBox.style.left=r.left+'px'; acBox.style.top=(r.bottom+3)+'px'; acBox.style.width=r.width+'px'; }
+  function acOpen(inp){ acInput=inp; acRender(); acPosition(); acBox.style.display='block'; }
+  function acClose(){ acBox.style.display='none'; acInput=null; acIdx=-1; }
+  function acChoose(nm){ if(!acInput||!nm)return; acInput.value=nm; acClose(); }
+  function acMove(d){ var els=acBox.querySelectorAll('.acit'); if(!els.length)return; acIdx=(acIdx+d+els.length)%els.length; for(var i=0;i<els.length;i++) els[i].classList.toggle('act',i===acIdx); try{els[acIdx].scrollIntoView({block:'nearest'});}catch(e){} }
+  function bindAC(inp){
+    if(!inp)return;
+    inp.addEventListener('focus',function(){ acOpen(inp); });
+    inp.addEventListener('click',function(){ if(acBox.style.display!=='block')acOpen(inp); });
+    inp.addEventListener('input',function(e){ if(e&&e.isComposing)return; acOpen(inp); });
+    inp.addEventListener('compositionend',function(){ acOpen(inp); });
+    inp.addEventListener('keydown',function(e){
+      if(acBox.style.display!=='block'||acInput!==inp)return;
+      var k=e.key;
+      if(k==='ArrowDown'){ if(e.preventDefault)e.preventDefault(); acMove(1); }
+      else if(k==='ArrowUp'){ if(e.preventDefault)e.preventDefault(); acMove(-1); }
+      else if(k==='Enter'){ if(acIdx>=0){ if(e.preventDefault)e.preventDefault(); acChoose(acItems[acIdx]); } else if(acItems.length===1){ if(e.preventDefault)e.preventDefault(); acChoose(acItems[0]); } }
+      else if(k==='Escape'){ acClose(); }
+    });
+    inp.addEventListener('blur',function(){ setTimeout(function(){ if(acInput===inp)acClose(); },120); });
+  }
+  bindAC(document.getElementById('plfrom'));
+  bindAC(document.getElementById('plto'));
+  var plbodyEl=document.getElementById('plbody'); if(plbodyEl)plbodyEl.addEventListener('scroll',function(){ if(acBox.style.display==='block')acPosition(); });
+
+  // ---------- map point-picking for origin / destination ----------
+  var pickTarget=null, pickMark=null;
+  var plhint=document.getElementById('plhint');
+  var pickBtn={from:document.getElementById('pickfrom'),to:document.getElementById('pickto')};
+  var pickInp={from:document.getElementById('plfrom'),to:document.getElementById('plto')};
+  function setHint(h){ if(plhint)plhint.innerHTML=h||''; }
+  function disarmPick(){ pickTarget=null; if(pickBtn.from)pickBtn.from.classList.remove('armed'); if(pickBtn.to)pickBtn.to.classList.remove('armed'); try{map.getContainer().style.cursor='';}catch(e){} setHint(''); }
+  function armPick(w){ if(pickTarget===w){ disarmPick(); return; } pickTarget=w; if(pickBtn.from)pickBtn.from.classList.toggle('armed',w==='from'); if(pickBtn.to)pickBtn.to.classList.toggle('armed',w==='to'); try{map.getContainer().style.cursor='crosshair';}catch(e){} setHint('📍 在地图上点击选择<b>'+(w==='from'?'出发':'目的')+'</b>位置…（Esc 取消）'); }
+  function nearestStop(lat,lng){ var best=null,bd=1e18; for(var i=0;i<STOP_NAMES.length;i++){ var nm=STOP_NAMES[i],c=stC(nm); if(!c)continue; var d=distM([lat,lng],c); if(d<bd){bd=d;best=nm;} } return best?{name:best,d:bd}:null; }
+  map.on('click',function(e){
+    if(!pickTarget)return;
+    var w=(typeof toWgs==='function')?toWgs(e.latlng.lat,e.latlng.lng):[e.latlng.lat,e.latlng.lng];
+    var ns=nearestStop(w[0],w[1]); if(!ns)return;
+    var which=pickTarget;
+    if(pickInp[which])pickInp[which].value=ns.name;
+    try{ if(pickMark){map.removeLayer(pickMark);} var gp=pt(w[0],w[1]); pickMark=L.marker(gp,{pane:'planPane',zIndexOffset:800,icon:L.divIcon({className:'pickmark',iconSize:[24,24],iconAnchor:[12,12],html:'<div style="font-size:20px;line-height:24px;text-align:center;filter:drop-shadow(0 2px 3px #000)">📍</div>'})}); ensureLayer().addLayer(pickMark); }catch(err){}
+    disarmPick();
+    setHint('📍 已取点 → 吸附最近站点 <b>'+ns.name+'</b>（'+(which==='from'?'出发':'目的')+'，直线约 '+Math.round(ns.d)+' 米）');
+  });
+  if(pickBtn.from)pickBtn.from.onclick=function(){ armPick('from'); };
+  if(pickBtn.to)pickBtn.to.onclick=function(){ armPick('to'); };
+  document.addEventListener('keydown',function(e){ if(e&&e.key==='Escape'&&pickTarget)disarmPick(); });
+
   // sensible defaults in the pickers
   document.getElementById('plfrom').value='新街口南';
   document.getElementById('plto').value='建康路·夫子庙';
